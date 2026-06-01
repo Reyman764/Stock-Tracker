@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
+  ArrowLeft,
   ChevronDown,
   ChevronUp,
   Clipboard,
@@ -482,7 +483,7 @@ export default function StockTracker() {
   const [stock, setStock] = useState(persisted.stock);
   const [history, setHistory] = useState(persisted.history);
   const [openIds, setOpenIds] = useState([]);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [page, setPage] = useState("stock");
   const [openHistoryDays, setOpenHistoryDays] = useState([]);
   const [copied, setCopied] = useState(false);
 
@@ -496,12 +497,12 @@ export default function StockTracker() {
   }, []);
 
   useEffect(() => {
-    if (!historyOpen) return;
+    if (page !== "history") return;
     setHistory((h) => {
       const pruned = pruneHistoryToLastWeek(h);
       return pruned.length === h.length ? h : pruned;
     });
-  }, [historyOpen]);
+  }, [page]);
 
   useEffect(() => {
     try {
@@ -578,18 +579,223 @@ export default function StockTracker() {
     0
   );
 
-  return (
+  const shellStyle = {
+    fontFamily: "'SF Pro Display', 'Helvetica Neue', sans-serif",
+    background: "#0A0A0F",
+    minHeight: "100vh",
+    maxWidth: 480,
+    margin: "0 auto",
+    paddingBottom: "max(24px, env(safe-area-inset-bottom))",
+    color: "#F0F0F5",
+  };
+
+  const historyList = (
     <div
       style={{
-        fontFamily: "'SF Pro Display', 'Helvetica Neue', sans-serif",
-        background: "#0A0A0F",
-        minHeight: "100vh",
-        maxWidth: 480,
-        margin: "0 auto",
-        paddingBottom: "max(24px, env(safe-area-inset-bottom))",
-        color: "#F0F0F5",
+        background: "#12121F",
+        border: "1px solid #1E1E2E",
+        borderRadius: 16,
+        overflow: "hidden",
       }}
     >
+      {history.length === 0 ? (
+        <div
+          style={{
+            padding: "32px 20px",
+            textAlign: "center",
+            fontSize: 14,
+            color: "#555",
+            lineHeight: 1.5,
+          }}
+        >
+          No changes yet.
+          <br />
+          Tap + or − on any model to log unit changes.
+        </div>
+      ) : (
+        historyByDay.map((group) => {
+          const isDayOpen = openHistoryDays.includes(group.dayKey);
+          return (
+            <div
+              key={group.dayKey}
+              style={{ borderBottom: "1px solid #1A1A2E" }}
+            >
+              <button
+                type="button"
+                onClick={() => toggleHistoryDay(group.dayKey)}
+                style={{
+                  width: "100%",
+                  background: "none",
+                  border: "none",
+                  padding: "14px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: "#F0F0F5",
+                    }}
+                  >
+                    {formatDayDropdownLabel(group)}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>
+                    {group.entries.length} change
+                    {group.entries.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                {isDayOpen ? (
+                  <ChevronUp size={18} color="#555" />
+                ) : (
+                  <ChevronDown size={18} color="#555" />
+                )}
+              </button>
+
+              {isDayOpen &&
+                group.entries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 10,
+                      padding: "10px 16px 12px 20px",
+                      borderTop: "1px solid #161622",
+                      background: "#0D0D1455",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: "6px 8px",
+                          marginBottom: 4,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: 0.6,
+                            textTransform: "uppercase",
+                            color: "#4CC9F0",
+                            background: "#4CC9F014",
+                            border: "1px solid #4CC9F033",
+                            borderRadius: 6,
+                            padding: "2px 7px",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {shortCategoryLabel(entry.categoryLabel)}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 700,
+                            fontFamily: "'SF Mono', 'Fira Code', monospace",
+                            color: "#E0E0EA",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {entry.model}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#666" }}>
+                        {entry.time}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        fontSize: 20,
+                        fontWeight: 800,
+                        fontFamily: "'SF Mono', 'Fira Code', monospace",
+                        color: entry.change > 0 ? "#06D6A0" : "#F72585",
+                        minWidth: 40,
+                        textAlign: "right",
+                      }}
+                    >
+                      {formatHistoryChange(entry.change)}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
+  if (page === "history") {
+    return (
+      <div style={shellStyle}>
+        <div
+          style={{
+            background: "linear-gradient(135deg, #0D0D1A 0%, #12121F 100%)",
+            borderBottom: "1px solid #1E1E2E",
+            padding: "14px 12px 16px",
+            paddingTop: "max(14px, env(safe-area-inset-top))",
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              type="button"
+              onClick={() => setPage("stock")}
+              aria-label="Back to stock tracker"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                border: "1px solid #2A2A4A",
+                background: "linear-gradient(135deg, #1A1A2E, #16213E)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#F0F0F5",
+                flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={22} />
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: "#F0F0F5",
+                  letterSpacing: -0.5,
+                }}
+              >
+                History Log
+              </div>
+              <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>
+                {history.length === 0
+                  ? "Last 7 days"
+                  : `${historyByDay.length} day${historyByDay.length === 1 ? "" : "s"} · ${history.length} change${history.length === 1 ? "" : "s"}`}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: "12px 10px 0" }}>{historyList}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={shellStyle}>
       {/* Header */}
       <div
         style={{
@@ -638,18 +844,15 @@ export default function StockTracker() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <button
               type="button"
-              onClick={() => setHistoryOpen((o) => !o)}
-              title={historyOpen ? "Hide history" : "History log"}
-              aria-label={historyOpen ? "Hide history log" : "Show history log"}
-              aria-expanded={historyOpen}
+              onClick={() => setPage("history")}
+              title="History log"
+              aria-label="Open history log"
               style={{
                 width: 44,
                 height: 44,
                 borderRadius: 12,
-                border: historyOpen ? "1px solid #4CC9F066" : "1px solid #2A2A4A",
-                background: historyOpen
-                  ? "linear-gradient(135deg, #4CC9F022, #7B2FBE22)"
-                  : "linear-gradient(135deg, #1A1A2E, #16213E)",
+                border: "1px solid #2A2A4A",
+                background: "linear-gradient(135deg, #1A1A2E, #16213E)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -725,179 +928,6 @@ export default function StockTracker() {
             </div>
           </div>
         </div>
-
-        {historyOpen && (
-          <div
-            style={{
-              marginTop: 12,
-              background: "#12121F",
-              border: "1px solid #4CC9F044",
-              borderRadius: 14,
-              overflow: "hidden",
-              maxHeight: "min(50vh, 360px)",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div
-              style={{
-                padding: "10px 14px",
-                borderBottom: "1px solid #1E1E2E",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#F0F0F5" }}>
-                History Log
-              </span>
-              <span style={{ fontSize: 11, color: "#555" }}>
-                {history.length === 0
-                  ? "Last 7 days"
-                  : `${historyByDay.length} day${historyByDay.length === 1 ? "" : "s"}`}
-              </span>
-            </div>
-            <div
-              style={{
-                overflowY: "auto",
-                WebkitOverflowScrolling: "touch",
-                flex: 1,
-              }}
-            >
-              {history.length === 0 ? (
-                <div
-                  style={{
-                    padding: "20px 16px",
-                    textAlign: "center",
-                    fontSize: 13,
-                    color: "#555",
-                  }}
-                >
-                  Tap + or − on any model to log unit changes.
-                </div>
-              ) : (
-                historyByDay.map((group) => {
-                  const isDayOpen = openHistoryDays.includes(group.dayKey);
-                  return (
-                    <div
-                      key={group.dayKey}
-                      style={{ borderBottom: "1px solid #1A1A2E" }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleHistoryDay(group.dayKey)}
-                        style={{
-                          width: "100%",
-                          background: "none",
-                          border: "none",
-                          padding: "11px 14px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                      >
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 700,
-                              color: "#F0F0F5",
-                            }}
-                          >
-                            {formatDayDropdownLabel(group)}
-                          </div>
-                          <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>
-                            {group.entries.length} change
-                            {group.entries.length === 1 ? "" : "s"}
-                          </div>
-                        </div>
-                        {isDayOpen ? (
-                          <ChevronUp size={16} color="#555" />
-                        ) : (
-                          <ChevronDown size={16} color="#555" />
-                        )}
-                      </button>
-
-                      {isDayOpen &&
-                        group.entries.map((entry) => (
-                          <div
-                            key={entry.id}
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 10,
-                              padding: "8px 14px 10px 18px",
-                              borderTop: "1px solid #161622",
-                              background: "#0D0D1455",
-                            }}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  flexWrap: "wrap",
-                                  alignItems: "center",
-                                  gap: "6px 8px",
-                                  marginBottom: 3,
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    letterSpacing: 0.6,
-                                    textTransform: "uppercase",
-                                    color: "#4CC9F0",
-                                    background: "#4CC9F014",
-                                    border: "1px solid #4CC9F033",
-                                    borderRadius: 6,
-                                    padding: "2px 7px",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {shortCategoryLabel(entry.categoryLabel)}
-                                </span>
-                                <span
-                                  style={{
-                                    fontSize: 14,
-                                    fontWeight: 700,
-                                    fontFamily:
-                                      "'SF Mono', 'Fira Code', monospace",
-                                    color: "#E0E0EA",
-                                    wordBreak: "break-all",
-                                  }}
-                                >
-                                  {entry.model}
-                                </span>
-                              </div>
-                              <div style={{ fontSize: 11, color: "#666" }}>
-                                {entry.time}
-                              </div>
-                            </div>
-                            <div
-                              style={{
-                                flexShrink: 0,
-                                fontSize: 18,
-                                fontWeight: 800,
-                                fontFamily: "'SF Mono', 'Fira Code', monospace",
-                                color: entry.change > 0 ? "#06D6A0" : "#F72585",
-                                minWidth: 36,
-                                textAlign: "right",
-                              }}
-                            >
-                              {formatHistoryChange(entry.change)}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Categories */}
