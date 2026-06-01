@@ -184,16 +184,6 @@ function resolveHistoryChange(entry) {
   return null;
 }
 
-function isValidHistoryEntry(entry) {
-  return (
-    entry &&
-    typeof entry === "object" &&
-    typeof entry.model === "string" &&
-    entry.model.length > 0 &&
-    resolveHistoryChange(entry) !== null
-  );
-}
-
 function formatHistoryChange(change) {
   return change > 0 ? `+${change}` : `${change}`;
 }
