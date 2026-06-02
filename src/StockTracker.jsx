@@ -553,7 +553,7 @@ export default function StockTracker() {
       };
       setHistory((h) => appendHistoryChange(h, model, change, category));
       setQtyFlash(`${catId}|${model}`);
-      window.setTimeout(() => setQtyFlash(null), 400);
+      window.setTimeout(() => setQtyFlash(null), 200);
 
       return prev.map((c) =>
         c.id !== catId
@@ -599,11 +599,11 @@ export default function StockTracker() {
 
   const todayKey = getDayKey();
 
-  const historyList = (
+  const historyList = useMemo(
+    () => (
     <div className="history-card">
       {history.length === 0 ? (
         <div className="history-empty">
-          <div className="history-empty-icon">📋</div>
           No changes yet.
           <br />
           Tap + or − on any model to log unit changes.
@@ -629,15 +629,7 @@ export default function StockTracker() {
                     {group.entries.length === 1 ? "" : "s"}
                   </div>
                 </div>
-                <ChevronDown
-                  size={18}
-                  color="#6a6a7a"
-                  className="category-chevron"
-                  style={{
-                    transform: isDayOpen ? "rotate(180deg)" : "rotate(0)",
-                    transition: "transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1)",
-                  }}
-                />
+                <ChevronDown size={18} color="#6a6a7a" className="day-chevron" />
               </button>
 
               {isDayOpen && (
@@ -696,11 +688,13 @@ export default function StockTracker() {
         })
       )}
     </div>
+    ),
+    [history, historyByDay, openHistoryDays, todayKey]
   );
 
   if (page === "history") {
     return (
-      <div className="app-shell page-enter">
+      <div className="app-shell">
         <header className="app-header">
           <div className="header-back-row">
             <button
@@ -727,7 +721,7 @@ export default function StockTracker() {
   }
 
   return (
-    <div className="app-shell page-enter">
+    <div className="app-shell">
       <header className="app-header">
         <div className="header-row">
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -770,10 +764,7 @@ export default function StockTracker() {
             <div
               key={cat.id}
               className={`category-card ${isOpen ? "is-open" : ""}`}
-              style={{
-                borderColor: isOpen ? `${cat.color}55` : undefined,
-                boxShadow: isOpen ? `0 8px 32px ${cat.color}18` : undefined,
-              }}
+              style={isOpen ? { borderColor: `${cat.color}55` } : undefined}
             >
               <button
                 type="button"
