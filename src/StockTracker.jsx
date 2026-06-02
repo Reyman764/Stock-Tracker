@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import "./StockTracker.css";
 import {
   ArrowLeft,
   ChevronDown,
-  ChevronUp,
   Clipboard,
   ClipboardCheck,
   Refrigerator,
@@ -501,6 +501,7 @@ export default function StockTracker() {
   const [page, setPage] = useState("stock");
   const [openHistoryDays, setOpenHistoryDays] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [qtyFlash, setQtyFlash] = useState(null);
 
   const historyByDay = useMemo(() => groupHistoryByDay(history), [history]);
 
@@ -551,6 +552,8 @@ export default function StockTracker() {
         categoryLabel: cat.label,
       };
       setHistory((h) => appendHistoryChange(h, model, change, category));
+      setQtyFlash(`${catId}|${model}`);
+      window.setTimeout(() => setQtyFlash(null), 400);
 
       return prev.map((c) =>
         c.id !== catId
@@ -594,35 +597,13 @@ export default function StockTracker() {
     0
   );
 
-  const shellStyle = {
-    fontFamily: "'SF Pro Display', 'Helvetica Neue', sans-serif",
-    background: "#0A0A0F",
-    minHeight: "100vh",
-    maxWidth: 480,
-    margin: "0 auto",
-    paddingBottom: "max(24px, env(safe-area-inset-bottom))",
-    color: "#F0F0F5",
-  };
+  const todayKey = getDayKey();
 
   const historyList = (
-    <div
-      style={{
-        background: "#12121F",
-        border: "1px solid #1E1E2E",
-        borderRadius: 16,
-        overflow: "hidden",
-      }}
-    >
+    <div className="history-card">
       {history.length === 0 ? (
-        <div
-          style={{
-            padding: "32px 20px",
-            textAlign: "center",
-            fontSize: 14,
-            color: "#555",
-            lineHeight: 1.5,
-          }}
-        >
+        <div className="history-empty">
+          <div className="history-empty-icon">📋</div>
           No changes yet.
           <br />
           Tap + or − on any model to log unit changes.
@@ -630,118 +611,86 @@ export default function StockTracker() {
       ) : (
         historyByDay.map((group) => {
           const isDayOpen = openHistoryDays.includes(group.dayKey);
+          const isToday = group.dayKey === todayKey;
           return (
-            <div
-              key={group.dayKey}
-              style={{ borderBottom: "1px solid #1A1A2E" }}
-            >
+            <div key={group.dayKey} className="day-group">
               <button
                 type="button"
+                className={`day-toggle tap-btn ${isDayOpen ? "is-open" : ""}`}
                 onClick={() => toggleHistoryDay(group.dayKey)}
-                style={{
-                  width: "100%",
-                  background: "none",
-                  border: "none",
-                  padding: "14px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 15,
-                      fontWeight: 700,
-                      color: "#F0F0F5",
-                    }}
-                  >
+                  <div className="day-label">
                     {formatDayDropdownLabel(group)}
+                    {isToday && <span className="day-badge-today">Today</span>}
                   </div>
-                  <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>
+                  <div className="day-meta">
                     {group.entries.length} change
                     {group.entries.length === 1 ? "" : "s"}
                   </div>
                 </div>
-                {isDayOpen ? (
-                  <ChevronUp size={18} color="#555" />
-                ) : (
-                  <ChevronDown size={18} color="#555" />
-                )}
+                <ChevronDown
+                  size={18}
+                  color="#6a6a7a"
+                  className="category-chevron"
+                  style={{
+                    transform: isDayOpen ? "rotate(180deg)" : "rotate(0)",
+                    transition: "transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1)",
+                  }}
+                />
               </button>
 
-              {isDayOpen &&
-                group.entries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 10,
-                      padding: "10px 16px 12px 20px",
-                      borderTop: "1px solid #161622",
-                      background: "#0D0D1455",
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          gap: "6px 8px",
-                          marginBottom: 4,
-                        }}
+              {isDayOpen && (
+                <div className="day-entries">
+                  {group.entries.map((entry) => (
+                    <div key={entry.id} className="history-entry">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                            gap: "6px 8px",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <span
+                            className="cat-badge"
+                            style={{
+                              color: "#4CC9F0",
+                              background: "rgba(76, 201, 240, 0.12)",
+                              border: "1px solid rgba(76, 201, 240, 0.28)",
+                            }}
+                          >
+                            {shortCategoryLabel(entry.categoryLabel)}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 700,
+                              fontFamily: "'SF Mono', ui-monospace, monospace",
+                              color: "#E8E8F0",
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            {entry.model}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: "#6a6a7a" }}>
+                          {entry.time}
+                        </div>
+                      </div>
+                      <span
+                        className={`change-pill ${
+                          entry.change > 0 ? "change-pill--up" : "change-pill--down"
+                        }`}
                       >
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            letterSpacing: 0.6,
-                            textTransform: "uppercase",
-                            color: "#4CC9F0",
-                            background: "#4CC9F014",
-                            border: "1px solid #4CC9F033",
-                            borderRadius: 6,
-                            padding: "2px 7px",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {shortCategoryLabel(entry.categoryLabel)}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 15,
-                            fontWeight: 700,
-                            fontFamily: "'SF Mono', 'Fira Code', monospace",
-                            color: "#E0E0EA",
-                            wordBreak: "break-all",
-                          }}
-                        >
-                          {entry.model}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#666" }}>
-                        {entry.time}
-                      </div>
+                        {formatHistoryChange(entry.change)}
+                      </span>
                     </div>
-                    <div
-                      style={{
-                        flexShrink: 0,
-                        fontSize: 20,
-                        fontWeight: 800,
-                        fontFamily: "'SF Mono', 'Fira Code', monospace",
-                        color: entry.change > 0 ? "#06D6A0" : "#F72585",
-                        minWidth: 40,
-                        textAlign: "right",
-                      }}
-                    >
-                      {formatHistoryChange(entry.change)}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
             </div>
           );
         })
@@ -751,385 +700,160 @@ export default function StockTracker() {
 
   if (page === "history") {
     return (
-      <div style={shellStyle}>
-        <div
-          style={{
-            background: "linear-gradient(135deg, #0D0D1A 0%, #12121F 100%)",
-            borderBottom: "1px solid #1E1E2E",
-            padding: "14px 12px 16px",
-            paddingTop: "max(14px, env(safe-area-inset-top))",
-            position: "sticky",
-            top: 0,
-            zIndex: 50,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="app-shell page-enter">
+        <header className="app-header">
+          <div className="header-back-row">
             <button
               type="button"
+              className="icon-btn icon-btn--back tap-btn"
               onClick={() => setPage("stock")}
               aria-label="Back to stock tracker"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                border: "1px solid #2A2A4A",
-                background: "linear-gradient(135deg, #1A1A2E, #16213E)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#F0F0F5",
-                flexShrink: 0,
-              }}
             >
               <ArrowLeft size={22} />
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: "#F0F0F5",
-                  letterSpacing: -0.5,
-                }}
-              >
-                History Log
-              </div>
-              <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>
+              <h1 className="history-header-title">History Log</h1>
+              <p className="history-header-sub">
                 {history.length === 0
                   ? "Last 7 days"
                   : `${historyByDay.length} day${historyByDay.length === 1 ? "" : "s"} · ${history.length} change${history.length === 1 ? "" : "s"}`}
-              </div>
+              </p>
             </div>
           </div>
-        </div>
-
-        <div style={{ padding: "12px 10px 0" }}>{historyList}</div>
+        </header>
+        <div className="content-pad">{historyList}</div>
       </div>
     );
   }
 
   return (
-    <div style={shellStyle}>
-      {/* Header */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #0D0D1A 0%, #12121F 100%)",
-          borderBottom: "1px solid #1E1E2E",
-          padding: "16px 18px 14px",
-          paddingTop: "max(16px, env(safe-area-inset-top))",
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-          }}
-        >
+    <div className="app-shell page-enter">
+      <header className="app-header">
+        <div className="header-row">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 3,
-                color: "#4CC9F0",
-                textTransform: "uppercase",
-                marginBottom: 2,
-              }}
-            >
-              Samsung
-            </div>
-            <div
-              style={{
-                fontSize: 20,
-                fontWeight: 800,
-                color: "#F0F0F5",
-                letterSpacing: -0.5,
-              }}
-            >
-              Stock Tracker
-            </div>
+            <div className="brand-eyebrow">Samsung</div>
+            <h1 className="brand-title">Stock Tracker</h1>
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <div className="header-actions">
             <button
               type="button"
+              className="icon-btn icon-btn--history tap-btn"
               onClick={() => setPage("history")}
               title="History log"
               aria-label="Open history log"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                border: "1px solid #2A2A4A",
-                background: "linear-gradient(135deg, #1A1A2E, #16213E)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#4CC9F0",
-                transition: "all 0.25s ease",
-                position: "relative",
-              }}
             >
               <History size={20} />
-              {history.length > 0 && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "#06D6A0",
-                    border: "2px solid #12121F",
-                  }}
-                />
-              )}
+              {history.length > 0 && <span className="notify-dot" />}
             </button>
-
             <button
               type="button"
+              className={`icon-btn icon-btn--copy tap-btn ${copied ? "is-copied" : ""}`}
               onClick={handleCopy}
               title={copied ? "Copied!" : "Copy summary"}
               aria-label={copied ? "Copied to clipboard" : "Copy summary to clipboard"}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                border: copied ? "1px solid #06D6A066" : "1px solid #2A2A4A",
-                background: copied
-                  ? "linear-gradient(135deg, #06D6A022, #00B4D822)"
-                  : "linear-gradient(135deg, #1A1A2E, #16213E)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: copied ? "#06D6A0" : "#4CC9F0",
-                transition: "all 0.25s ease",
-              }}
             >
               {copied ? <ClipboardCheck size={20} /> : <Clipboard size={20} />}
             </button>
-
-            <div
-              style={{
-                background: "linear-gradient(135deg, #1A1A2E, #16213E)",
-                border: "1px solid #2A2A4A",
-                borderRadius: 14,
-                padding: "8px 14px",
-                textAlign: "center",
-              }}
-            >
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#4CC9F0" }}>
-                {totalItems}
-              </div>
-              <div
-                style={{
-                  fontSize: 9,
-                  color: "#888",
-                  fontWeight: 600,
-                  letterSpacing: 1,
-                }}
-              >
-                TOTAL
-              </div>
+            <div className="total-pill">
+              <div className="total-pill-value">{totalItems}</div>
+              <div className="total-pill-label">TOTAL</div>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Categories */}
-      <div style={{ padding: "10px 10px 0" }}>
+      <div className="categories-wrap">
         {stock.map((cat) => {
           const isOpen = openIds.includes(cat.id);
           const catTotal = cat.items.reduce((s, i) => s + i.qty, 0);
           return (
             <div
               key={cat.id}
+              className={`category-card ${isOpen ? "is-open" : ""}`}
               style={{
-                background: "#12121F",
-                border: `1px solid ${isOpen ? cat.color + "44" : "#1E1E2E"}`,
-                borderRadius: 16,
-                marginBottom: 8,
-                overflow: "hidden",
-                transition: "border-color 0.2s",
+                borderColor: isOpen ? `${cat.color}55` : undefined,
+                boxShadow: isOpen ? `0 8px 32px ${cat.color}18` : undefined,
               }}
             >
               <button
                 type="button"
+                className="category-card-header tap-btn"
                 onClick={() => toggleCategory(cat.id)}
-                style={{
-                  width: "100%",
-                  background: "none",
-                  border: "none",
-                  padding: "14px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  cursor: "pointer",
-                  minHeight: 60,
-                }}
               >
                 <div
+                  className="category-icon-wrap"
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 11,
-                    background: cat.color + "18",
-                    border: `1px solid ${cat.color}44`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
+                    background: `${cat.color}20`,
+                    border: `1px solid ${cat.color}50`,
                   }}
                 >
                   <CategoryIcon type={cat.icon} color={cat.color} />
                 </div>
                 <div style={{ flex: 1, textAlign: "left" }}>
-                  <div
-                    style={{
-                      fontSize: 15,
-                      fontWeight: 700,
-                      color: "#F0F0F5",
-                    }}
-                  >
-                    {cat.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#555", marginTop: 1 }}>
-                    {cat.items.length} models
-                  </div>
+                  <div className="category-title">{cat.label}</div>
+                  <div className="category-meta">{cat.items.length} models</div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div
+                    className="category-count"
                     style={{
-                      background: cat.color + "22",
+                      background: `${cat.color}22`,
                       border: `1px solid ${cat.color}55`,
-                      borderRadius: 8,
-                      padding: "4px 10px",
-                      fontSize: 15,
-                      fontWeight: 800,
                       color: cat.color,
-                      minWidth: 34,
-                      textAlign: "center",
                     }}
                   >
                     {catTotal}
                   </div>
-                  {isOpen ? (
-                    <ChevronUp size={16} color="#555" />
-                  ) : (
-                    <ChevronDown size={16} color="#555" />
-                  )}
+                  <ChevronDown size={18} color="#6a6a7a" className="category-chevron" />
                 </div>
               </button>
 
               {isOpen && (
                 <div
-                  style={{
-                    borderTop: `1px solid ${cat.color}22`,
-                    padding: "2px 0 6px",
-                  }}
+                  className="items-panel"
+                  style={{ borderTopColor: `${cat.color}33` }}
                 >
-                  {cat.items.map((item, idx) => (
-                    <div
-                      key={item.model}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "8px 12px",
-                        gap: 8,
-                        background: idx % 2 === 0 ? "transparent" : "#0D0D1A55",
-                      }}
-                    >
-                      <div
-                        style={{
-                          flex: 1,
-                          fontSize: 17,
-                          fontWeight: 700,
-                          lineHeight: 1.25,
-                          color: item.qty === 0 ? "#4A4A5A" : "#E8E8F0",
-                          fontFamily: "'SF Mono', 'Fira Code', monospace",
-                          wordBreak: "break-all",
-                          letterSpacing: 0.2,
-                        }}
-                      >
-                        {item.model}
-                      </div>
-
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          background: "#1A1A2E",
-                          borderRadius: 13,
-                          border: "1px solid #2A2A4A",
-                          overflow: "hidden",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => adjust(cat.id, item.model, -1)}
-                          disabled={item.qty === 0}
-                          style={{
-                            width: 44,
-                            height: 44,
-                            background: "none",
-                            border: "none",
-                            cursor: item.qty === 0 ? "default" : "pointer",
-                            fontSize: 22,
-                            fontWeight: 700,
-                            color: item.qty === 0 ? "#252535" : "#F72585",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          −
-                        </button>
+                  {cat.items.map((item) => {
+                    const itemFlash = qtyFlash === `${cat.id}|${item.model}`;
+                    return (
+                      <div key={item.model} className="stock-row">
                         <div
-                          style={{
-                            width: 40,
-                            textAlign: "center",
-                            fontSize: 17,
-                            fontWeight: 800,
-                            color: item.qty === 0 ? "#303040" : cat.color,
-                            borderLeft: "1px solid #2A2A4A",
-                            borderRight: "1px solid #2A2A4A",
-                            lineHeight: "44px",
-                          }}
+                          className={`model-code ${
+                            item.qty === 0 ? "is-zero" : "has-stock"
+                          }`}
                         >
-                          {item.qty}
+                          {item.model}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => adjust(cat.id, item.model, 1)}
-                          style={{
-                            width: 44,
-                            height: 44,
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            fontSize: 22,
-                            fontWeight: 700,
-                            color: "#06D6A0",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          +
-                        </button>
+                        <div className="qty-stepper">
+                          <button
+                            type="button"
+                            className="qty-btn qty-btn--minus tap-btn"
+                            onClick={() => adjust(cat.id, item.model, -1)}
+                            disabled={item.qty === 0}
+                            aria-label={`Decrease ${item.model}`}
+                          >
+                            −
+                          </button>
+                          <div
+                            className={`qty-value ${itemFlash ? "is-pop" : ""}`}
+                            style={{
+                              color: item.qty === 0 ? "#404055" : cat.color,
+                            }}
+                          >
+                            {item.qty}
+                          </div>
+                          <button
+                            type="button"
+                            className="qty-btn qty-btn--plus tap-btn"
+                            onClick={() => adjust(cat.id, item.model, 1)}
+                            aria-label={`Increase ${item.model}`}
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
