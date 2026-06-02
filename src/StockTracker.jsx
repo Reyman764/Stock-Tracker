@@ -113,6 +113,10 @@ const STORAGE_KEY = "samsung_stock_v1";
 const STORAGE_VERSION = 2;
 const HISTORY_RETENTION_DAYS = 7;
 
+// Nepal Standard Time is UTC+5:45
+const NPT_TIMEZONE = "Asia/Kathmandu";
+const NPT_OFFSET_MS = (5 * 60 + 45) * 60 * 1000; // 20700000 ms
+
 const MODEL_CATEGORY_MAP = (() => {
   const map = new Map();
   for (const cat of INITIAL_DATA) {
@@ -190,9 +194,11 @@ function formatHistoryChange(change) {
 }
 
 function getDayKey(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  // Use UTC methods on NPT-shifted date so the day boundary is Nepal midnight
+  const npt = new Date(date.getTime() + NPT_OFFSET_MS);
+  const y = npt.getUTCFullYear();
+  const m = String(npt.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(npt.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
@@ -207,10 +213,15 @@ function getDayKeyFromEntry(entry) {
 
 /** Oldest dayKey still kept (today + previous 6 days = 7 calendar days). */
 function getMinRetainedDayKey(now = new Date()) {
-  const d = new Date(now);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - (HISTORY_RETENTION_DAYS - 1));
-  return getDayKey(d);
+  // Find Nepal midnight of today, then go back HISTORY_RETENTION_DAYS-1 days
+  const nptNow = new Date(now.getTime() + NPT_OFFSET_MS);
+  const nptStartOfToday = Date.UTC(
+    nptNow.getUTCFullYear(),
+    nptNow.getUTCMonth(),
+    nptNow.getUTCDate()
+  );
+  const minDate = new Date(nptStartOfToday - (HISTORY_RETENTION_DAYS - 1) * 24 * 60 * 60 * 1000);
+  return getDayKey(minDate);
 }
 
 function pruneHistoryToLastWeek(entries, now = new Date()) {
@@ -273,21 +284,23 @@ function normalizeHistoryEntry(entry) {
     date:
       typeof entry.date === "string"
         ? entry.date
-        : dateFromTs.toLocaleDateString(undefined, {
+        : dateFromTs.toLocaleDateString("en-US", {
             year: "numeric",
             month: "short",
             day: "numeric",
+            timeZone: NPT_TIMEZONE,
           }),
     day:
       typeof entry.day === "string"
         ? entry.day
-        : dateFromTs.toLocaleDateString(undefined, { weekday: "long" }),
+        : dateFromTs.toLocaleDateString("en-US", { weekday: "long", timeZone: NPT_TIMEZONE }),
     time:
       typeof entry.time === "string"
         ? entry.time
-        : dateFromTs.toLocaleTimeString(undefined, {
+        : dateFromTs.toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
+            timeZone: NPT_TIMEZONE,
           }),
     model: entry.model,
     change,
@@ -358,15 +371,17 @@ function createHistoryEntry(model, change, category, now = new Date()) {
     dayKey: getDayKey(now),
     categoryId: category.categoryId,
     categoryLabel: category.categoryLabel,
-    date: now.toLocaleDateString(undefined, {
+    date: now.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
+      timeZone: NPT_TIMEZONE,
     }),
-    day: now.toLocaleDateString(undefined, { weekday: "long" }),
-    time: now.toLocaleTimeString(undefined, {
+    day: now.toLocaleDateString("en-US", { weekday: "long", timeZone: NPT_TIMEZONE }),
+    time: now.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
+      timeZone: NPT_TIMEZONE,
     }),
     model,
     change: signedChange,

@@ -1,209 +1,305 @@
-# 📦 Samsung Stock Tracker
+# Samsung Stock Tracker
 
-A mobile-first daily inventory tracker for Samsung products. Built with React and optimized for iPhone/Android use. Data saves automatically to your browser so counts persist every day.
-
----
-
-## ✨ Features
-
-- 6 product categories: Fridge, TV, Washing Machine, Microwave, Vacuum, A/C
-- Tap category headers to expand/collapse
-- Large +/− buttons optimized for thumb use on mobile
-- Quantities never go below 0
-- Auto-saves to localStorage on every change
-- Copy full inventory summary to clipboard in `MODEL = QUANTITY` format
+A mobile-friendly inventory tracker for Samsung products. Tracks stock quantities and keeps a 7-day history log. All data is saved locally in the browser (no server needed). Works offline after the first visit.
 
 ---
 
-## 🖥️ Requirements
+## Table of Contents
 
-Make sure you have these installed before starting:
+1. [What you need before starting](#1-what-you-need-before-starting)
+2. [Download and set up the project](#2-download-and-set-up-the-project)
+3. [Run locally on your computer](#3-run-locally-on-your-computer)
+4. [Make changes to the code](#4-make-changes-to-the-code)
+5. [Push changes to GitHub](#5-push-changes-to-github)
+6. [Deploy to Vercel (auto from GitHub)](#6-deploy-to-vercel-auto-from-github)
+7. [Manual deploy to Vercel without Git](#7-manual-deploy-to-vercel-without-git)
+8. [Project file structure](#8-project-file-structure)
+9. [Common problems and fixes](#9-common-problems-and-fixes)
 
-| Tool | Version | Download |
-|------|---------|----------|
-| Node.js | v18 or higher | https://nodejs.org |
-| npm | comes with Node.js | — |
-| Git | any recent version | https://git-scm.com |
+---
 
-To check if already installed, run in terminal:
-```bash
-node -v
-npm -v
-git --version
+## 1. What you need before starting
+
+Install these on your computer once. You only do this once.
+
+### Node.js (required to run and build the app)
+
+1. Go to **https://nodejs.org**
+2. Click the button that says **LTS** (recommended version)
+3. Download and install it
+4. To confirm it worked, open Terminal (Mac/Linux) or Command Prompt (Windows) and type:
+   ```
+   node --version
+   ```
+   You should see something like `v18.17.0` or higher.
+
+### Git (required to push to GitHub)
+
+1. Go to **https://git-scm.com/downloads**
+2. Download for your operating system and install
+3. To confirm it worked, type:
+   ```
+   git --version
+   ```
+   You should see something like `git version 2.40.0`.
+
+### GitHub account (required for Vercel auto-deploy)
+
+- Sign up at **https://github.com** if you don't already have one
+
+---
+
+## 2. Download and set up the project
+
+### If you are starting fresh from the ZIP file
+
+1. Unzip `stock-tracker-updated.zip` to a folder on your computer, for example `Desktop/stock-tracker`
+
+2. Open Terminal (Mac/Linux) or Command Prompt (Windows)
+
+3. Navigate into the project folder:
+   ```
+   cd Desktop/stock-tracker/stock-tracker-final
+   ```
+   *(Adjust the path to wherever you unzipped it)*
+
+4. Install the project dependencies (this downloads all required packages):
+   ```
+   npm install
+   ```
+   This will take 1–2 minutes. You will see a lot of text — that is normal. Wait until you get your cursor back.
+
+### If you already have the project from a previous time
+
+Just navigate to the folder and run `npm install` again if you pulled new changes.
+
+---
+
+## 3. Run locally on your computer
+
+Use this when you want to test the app on your own computer before deploying.
+
+1. Make sure you are inside the project folder:
+   ```
+   cd Desktop/stock-tracker/stock-tracker-final
+   ```
+
+2. Start the local development server:
+   ```
+   npm start
+   ```
+
+3. Your browser will automatically open at **http://localhost:3000**
+
+4. The app is now running locally. Any changes you save to the code will instantly refresh in the browser.
+
+5. To **stop** the server, press `Ctrl + C` in Terminal.
+
+> **Note:** The local version does NOT need internet to run after `npm install` is done.
+
+---
+
+## 4. Make changes to the code
+
+All the app logic is in one file:
+
+```
+src/StockTracker.jsx
 ```
 
----
+Open it in any code editor (VS Code is recommended — download at https://code.visualstudio.com).
 
-## 🚀 Step 1 — Install & Run Locally
-
-### 1. Extract the ZIP file
-Unzip `stock-tracker.zip` to a folder on your computer.
-
-### 2. Open terminal in that folder
-- **Windows**: Right-click the folder → "Open in Terminal"
-- **Mac**: Right-click the folder → "New Terminal at Folder"
-
-### 3. Install dependencies
-```bash
-npm install
-```
-This takes 2–3 minutes. It downloads React and all required packages.
-
-### 4. Start the app
-```bash
-npm start
-```
-Your browser opens automatically at `http://localhost:3000`
-
-> ✅ If you see the Samsung Stock Tracker app, the local setup is complete!
+After editing, just save the file. If `npm start` is running, the browser will auto-refresh.
 
 ---
 
-## 📤 Step 2 — Push to GitHub
+## 5. Push changes to GitHub
 
-You need a GitHub account to deploy to Vercel.
+Do this every time you make changes and want to save them to GitHub (and auto-deploy to Vercel).
 
-### 1. Create a GitHub account
-Go to https://github.com and sign up (free).
+### First time only — connect the folder to GitHub
 
-### 2. Create a new repository
-- Click the **+** icon → **New repository**
-- Name it: `stock-tracker`
-- Keep it **Public**
-- Do NOT tick "Add README" (we already have one)
-- Click **Create repository**
+1. Create a new repository on GitHub:
+   - Go to **https://github.com/new**
+   - Give it a name like `samsung-stock-tracker`
+   - Leave it **Public** or **Private** (your choice)
+   - Do **NOT** check "Initialize with README" (the project already has one)
+   - Click **Create repository**
 
-### 3. Push your code
-In your terminal (still in the `stock-tracker` folder), run these one by one:
+2. Copy the repository URL shown on the next page. It looks like:
+   ```
+   https://github.com/YOUR-USERNAME/samsung-stock-tracker.git
+   ```
 
-```bash
-git init
+3. In Terminal, inside the project folder, run these commands one by one:
+   ```
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin https://github.com/YOUR-USERNAME/samsung-stock-tracker.git
+   git push -u origin main
+   ```
+   Replace the URL with your actual repository URL.
+
+4. GitHub will ask for your username and password (or a token). If it asks for a token, generate one at **https://github.com/settings/tokens** → *Generate new token (classic)* → tick **repo** → copy the token and paste it as the password.
+
+### Every time after that — save and push changes
+
+Whenever you change any file:
+
+```
 git add .
-git commit -m "first commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/stock-tracker.git
-git push -u origin main
-```
-
-> ⚠️ Replace `YOUR_USERNAME` with your actual GitHub username.
-
-If GitHub asks for login, enter your GitHub username and password (or a Personal Access Token if you have 2FA enabled).
-
-### 4. Verify
-Visit `https://github.com/YOUR_USERNAME/stock-tracker` — you should see your files listed.
-
----
-
-## ☁️ Step 3 — Deploy to Vercel (Free Hosting)
-
-### 1. Create a Vercel account
-Go to https://vercel.com and click **Sign Up → Continue with GitHub**.
-Authorize Vercel to access your GitHub account.
-
-### 2. Import your project
-- On the Vercel dashboard, click **Add New → Project**
-- Find `stock-tracker` in the list and click **Import**
-
-### 3. Configure (no changes needed)
-Vercel auto-detects it as a React app. Leave all settings as default.
-
-### 4. Deploy
-Click the **Deploy** button. Wait about 30 seconds.
-
-### 5. Get your live URL
-After deployment, Vercel shows a URL like:
-```
-https://stock-tracker-abc123.vercel.app
-```
-
-> ✅ Your app is now live on the internet!
-
----
-
-## 📱 Step 4 — Add to iPhone Home Screen
-
-1. Open **Safari** on your iPhone (must be Safari, not Chrome)
-2. Go to your Vercel URL
-3. Tap the **Share button** (square with arrow pointing up, at the bottom)
-4. Scroll down and tap **"Add to Home Screen"**
-5. Name it **Stock Tracker** → tap **Add**
-
-The app now appears on your iPhone home screen like a native app. Tap it anytime to open — no browser bar, full screen!
-
----
-
-## 🔄 Step 5 — Updating the App Later
-
-If you change the code and want to redeploy:
-
-```bash
-git add .
-git commit -m "update stock data"
+git commit -m "Describe what you changed here"
 git push
 ```
 
-Vercel automatically detects the push and redeploys within 30 seconds. Your live URL stays the same.
+Example commit messages:
+- `git commit -m "Update stock quantities for June"`
+- `git commit -m "Add new AC model"`
+- `git commit -m "Fix history display issue"`
 
 ---
 
-## 📁 Project Structure
+## 6. Deploy to Vercel (auto from GitHub)
+
+Once your GitHub repository is connected to Vercel, every `git push` will automatically deploy to your live Vercel URL. You only set this up once.
+
+### First time — connect Vercel to your GitHub repo
+
+1. Go to **https://vercel.com** and log in (or sign up using your GitHub account)
+
+2. Click **Add New Project**
+
+3. Click **Continue with GitHub** and authorize Vercel to access your repositories
+
+4. Find `samsung-stock-tracker` in the list and click **Import**
+
+5. On the configuration page:
+   - **Framework Preset:** Select **Create React App**
+   - **Root Directory:** Leave as `.` (the default)
+   - **Build Command:** `npm run build` *(should be pre-filled)*
+   - **Output Directory:** `build` *(should be pre-filled)*
+
+6. Click **Deploy**
+
+7. Wait about 1–2 minutes. Vercel will build and deploy the app.
+
+8. When it finishes, you will get a live URL like:
+   ```
+   https://samsung-stock-tracker.vercel.app
+   ```
+
+### After the first setup — automatic deploy on every push
+
+From now on, every time you run `git push`, Vercel will automatically:
+1. Detect the new code
+2. Build the app (`npm run build`)
+3. Deploy the new version to the same live URL
+
+You do not need to do anything manually on Vercel after the first setup.
+
+> **Tip:** You can watch the deployment progress live at https://vercel.com/dashboard
+
+---
+
+## 7. Manual deploy to Vercel without Git
+
+If you want to deploy the built files directly without using Git:
+
+1. First build the app:
+   ```
+   npm run build
+   ```
+   This creates a `build/` folder with the production files.
+
+2. Install the Vercel CLI (one time):
+   ```
+   npm install -g vercel
+   ```
+
+3. Log in:
+   ```
+   vercel login
+   ```
+
+4. Deploy:
+   ```
+   vercel --prod
+   ```
+   Follow the prompts. When asked for the output directory, type `build`.
+
+---
+
+## 8. Project file structure
 
 ```
-stock-tracker/
+stock-tracker-final/
 ├── public/
-│   └── index.html          # HTML shell with mobile meta tags
+│   ├── index.html          ← Main HTML shell
+│   └── service-worker.js   ← Offline caching (do not delete)
 ├── src/
-│   ├── App.js              # Main app — all logic and UI lives here
-│   └── index.js            # React entry point
-├── package.json            # Dependencies and scripts
-└── README.md               # This file
+│   ├── App.js              ← Entry point (just re-exports StockTracker)
+│   ├── index.js            ← React root + service worker registration
+│   └── StockTracker.jsx    ← ALL the app logic and UI (main file)
+├── build/                  ← Generated by `npm run build` (Vercel uses this)
+├── package.json            ← Project info and scripts
+└── README.md               ← This file
 ```
 
----
-
-## 🛠️ Troubleshooting
-
-| Problem | Fix |
-|--------|-----|
-| `npm: command not found` | Install Node.js from https://nodejs.org |
-| `git: command not found` | Install Git from https://git-scm.com |
-| `npm install` fails | Delete `node_modules` folder and run `npm install` again |
-| App opens but looks blank | Check browser console (F12) for errors |
-| GitHub push rejected | Make sure you're using the correct username in the remote URL |
-| Vercel shows build error | Check that `npm start` works locally first |
-| iPhone: clipboard not working | iOS requires HTTPS — works fine on Vercel, not on `localhost` |
+> **The only file you normally need to edit is `src/StockTracker.jsx`.**
+> To add/remove models, find the `INITIAL_DATA` array near the top of that file.
 
 ---
 
-## 💾 Data Storage
+## 9. Common problems and fixes
 
-All stock data is saved in your **browser's localStorage** under the key `samsung_stock_v1`. This means:
+### `npm install` fails with errors
 
-- ✅ Data persists when you refresh the page
-- ✅ Data persists when you close and reopen the browser
-- ✅ Works offline after first load
-- ⚠️ Data is stored per device/browser — counts on your phone won't sync to your laptop
-- ⚠️ Clearing browser data/cache will reset counts to default
-
----
-
-## 📋 Copy Summary Format
-
-Tapping **Copy Summary** copies inventory in this format:
-
+Try:
 ```
-SAMSUNG FRIDGE
-RR20C20C2GS = 4
-RR20C20C2RH = 6
-...
-
-SAMSUNG TV
-UA32N4010 = 2
-...
+npm install --legacy-peer-deps
 ```
 
-You can paste this directly into WhatsApp, Notes, Excel, or any messaging app.
+### Browser shows old version after deploy
+
+Hard refresh the browser:
+- Windows/Linux: `Ctrl + Shift + R`
+- Mac: `Cmd + Shift + R`
+
+Or open in a private/incognito window.
+
+### Git says "repository already exists"
+
+If you see `fatal: remote origin already exists`, run:
+```
+git remote set-url origin https://github.com/YOUR-USERNAME/samsung-stock-tracker.git
+```
+
+### Vercel build fails
+
+Make sure the **Output Directory** in Vercel project settings is set to `build` (not `dist` or anything else).
+
+Go to: Vercel Dashboard → Your Project → Settings → General → Output Directory → set to `build` → Save.
+
+### App works locally but not on Vercel
+
+Check that the Vercel project's **Framework Preset** is set to **Create React App**.
+
+Go to: Vercel Dashboard → Your Project → Settings → General → Framework Preset.
+
+### History is empty after opening the app
+
+History is stored in the browser's local storage. It is tied to the device and browser. If you open the app in a different browser or device, history will start fresh. This is expected behavior.
 
 ---
 
-*Built with React 18 + Lucide Icons. Hosted free on Vercel.*
+## Quick reference — commands cheat sheet
+
+| What you want to do | Command |
+|---|---|
+| Install dependencies | `npm install` |
+| Run locally | `npm start` |
+| Build for production | `npm run build` |
+| Save + push to GitHub | `git add . && git commit -m "message" && git push` |
+| Deploy manually to Vercel | `vercel --prod` |
