@@ -57,6 +57,7 @@ const INITIAL_DATA = [
       { model: "Qa55Q60D", qty: 1 },
       { model: "QA55Q60C", qty: 0 },
       { model: "QA75Q7FAARSHE", qty: 0 },
+      { model: "UA32H45550", qty: 0 },
     ],
   },
   {
