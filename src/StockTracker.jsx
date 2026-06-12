@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import "./StockTracker.css";
 import {
   ArrowLeft,
@@ -12,6 +12,10 @@ import {
   Wind,
   Zap,
   History,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  FileType,
 } from "lucide-react";
 
 const INITIAL_DATA = [
@@ -113,7 +117,7 @@ const INITIAL_DATA = [
 
 const STORAGE_KEY = "samsung_stock_v1";
 const STORAGE_VERSION = 2;
-const HISTORY_RETENTION_DAYS = 7;
+const MAX_HISTORY_RECORDS = 7;
 
 // Nepal Standard Time is UTC+5:45
 const NPT_TIMEZONE = "Asia/Kathmandu";
@@ -213,24 +217,11 @@ function getDayKeyFromEntry(entry) {
   return getDayKey(new Date(ts));
 }
 
-/** Oldest dayKey still kept (today + previous 6 days = 7 calendar days). */
-function getMinRetainedDayKey(now = new Date()) {
-  // Find Nepal midnight of today, then go back HISTORY_RETENTION_DAYS-1 days
-  const nptNow = new Date(now.getTime() + NPT_OFFSET_MS);
-  const nptStartOfToday = Date.UTC(
-    nptNow.getUTCFullYear(),
-    nptNow.getUTCMonth(),
-    nptNow.getUTCDate()
-  );
-  const minDate = new Date(nptStartOfToday - (HISTORY_RETENTION_DAYS - 1) * 24 * 60 * 60 * 1000);
-  return getDayKey(minDate);
-}
-
-function pruneHistoryToLastWeek(entries, now = new Date()) {
-  const minKey = getMinRetainedDayKey(now);
+/** Keep only the latest MAX_HISTORY_RECORDS records regardless of days. */
+function pruneHistoryToMaxRecords(entries) {
   return entries
-    .filter((e) => getDayKeyFromEntry(e) >= minKey)
-    .sort((a, b) => b.timestamp - a.timestamp);
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, MAX_HISTORY_RECORDS);
 }
 
 function groupHistoryByDay(entries) {
@@ -353,7 +344,7 @@ function aggregateHistoryByDayAndModel(entries) {
     });
   }
 
-  return pruneHistoryToLastWeek(
+  return pruneHistoryToMaxRecords(
     Array.from(merged.values()).sort((a, b) => b.timestamp - a.timestamp)
   );
 }
@@ -361,7 +352,7 @@ function aggregateHistoryByDayAndModel(entries) {
 function parseHistory(raw) {
   if (!Array.isArray(raw)) return [];
   const normalized = raw.map(normalizeHistoryEntry).filter(Boolean);
-  return pruneHistoryToLastWeek(aggregateHistoryByDayAndModel(normalized));
+  return pruneHistoryToMaxRecords(aggregateHistoryByDayAndModel(normalized));
 }
 
 function createHistoryEntry(model, change, category, now = new Date()) {
@@ -400,9 +391,8 @@ function appendHistoryChange(history, model, change, category) {
   );
 
   if (existingIndex === -1) {
-    return pruneHistoryToLastWeek(
-      [createHistoryEntry(model, change, category, now), ...history],
-      now
+    return pruneHistoryToMaxRecords(
+      [createHistoryEntry(model, change, category, now), ...history]
     );
   }
 
@@ -410,9 +400,8 @@ function appendHistoryChange(history, model, change, category) {
   const combinedChange = existing.change + change;
 
   if (combinedChange === 0) {
-    return pruneHistoryToLastWeek(
-      history.filter((_, i) => i !== existingIndex),
-      now
+    return pruneHistoryToMaxRecords(
+      history.filter((_, i) => i !== existingIndex)
     );
   }
 
@@ -428,7 +417,7 @@ function appendHistoryChange(history, model, change, category) {
   };
 
   const rest = history.filter((_, i) => i !== existingIndex);
-  return pruneHistoryToLastWeek([updated, ...rest], now);
+  return pruneHistoryToMaxRecords([updated, ...rest]);
 }
 
 function loadPersistedState() {
@@ -475,6 +464,161 @@ function serializeStockForStorage(stock) {
   }));
 }
 
+// ─── Export helpers ────────────────────────────────────────────────────────────
+
+/** Lazy-load ExcelJS from CDN once, returns the ExcelJS global. */
+function loadExcelJS() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+    s.onload = () => resolve(window.ExcelJS);
+    s.onerror = () => reject(new Error("Failed to load ExcelJS"));
+    document.head.appendChild(s);
+  });
+}
+
+/**
+ * Exports stock in the exact SAMSUNG.xlsx format:
+ *   Row 1  : "SAMSUNG"  bold 20pt
+ *   Per cat: category label  bold 10pt  (no qty)
+ *            model rows      regular 10pt  qty right-aligned in col B
+ */
+async function exportAsXLSX(stock) {
+  const ExcelJS = await loadExcelJS();
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Samsung Stock Tracker";
+  const ws = wb.addWorksheet("Samsung Stock");
+
+  ws.getColumn(1).width = 36;
+  ws.getColumn(2).width = 10;
+
+  // Title row
+  const titleRow = ws.addRow(["SAMSUNG"]);
+  titleRow.getCell(1).font = { bold: true, size: 20, name: "Calibri" };
+
+  // Categories + items
+  for (const cat of stock) {
+    const catRow = ws.addRow([cat.label]);
+    catRow.getCell(1).font = { bold: true, size: 10, name: "Calibri" };
+
+    for (const item of cat.items) {
+      const itemRow = ws.addRow([item.model.trim(), item.qty]);
+      itemRow.getCell(1).font = { size: 10, name: "Calibri" };
+      itemRow.getCell(2).font = { size: 10, name: "Calibri" };
+      itemRow.getCell(2).alignment = { horizontal: "right" };
+    }
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "samsung-stock.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportAsPDF(stock) {
+  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Samsung Stock Report</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 30px; color: #111; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 13px; margin-bottom: 24px; }
+  h2 { font-size: 15px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #333; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  th { background: #1a1a2e; color: #fff; padding: 8px 10px; text-align: left; font-size: 13px; }
+  td { padding: 7px 10px; font-size: 13px; border-bottom: 1px solid #eee; }
+  tr:nth-child(even) td { background: #f9f9f9; }
+  .qty-zero { color: #999; }
+  @media print { body { margin: 15px; } }
+</style></head><body>
+<h1>Samsung Stock Report</h1>
+<div class="subtitle">Generated: ${new Date().toLocaleString("en-US", { timeZone: NPT_TIMEZONE })}</div>`;
+
+  for (const cat of stock) {
+    const total = cat.items.reduce((s, i) => s + i.qty, 0);
+    html += `<h2>${cat.label} &mdash; Total: ${total}</h2>
+<table><tr><th>Model</th><th>Quantity</th></tr>`;
+    for (const item of cat.items) {
+      html += `<tr><td>${item.model}</td><td class="${item.qty === 0 ? "qty-zero" : ""}">${item.qty}</td></tr>`;
+    }
+    html += `</table>`;
+  }
+
+  html += `</body></html>`;
+
+  // Use a hidden iframe to avoid popup blockers
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none;";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  // Wait for styles/content to render before printing
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 2000);
+  }, 400);
+}
+
+function exportAsWord(stock) {
+  let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office'
+xmlns:w='urn:schemas-microsoft-com:office:word'
+xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='UTF-8'>
+<title>Samsung Stock Report</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>90</w:Zoom>
+<w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
+<style>
+  body { font-family: Calibri, Arial, sans-serif; margin: 40px; }
+  h1 { font-size: 22pt; color: #1a1a2e; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 10pt; margin-bottom: 24px; }
+  h2 { font-size: 14pt; color: #1a1a2e; margin: 20px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  th { background: #1a1a2e; color: #fff; padding: 6px 10px; font-size: 11pt; text-align: left; }
+  td { padding: 6px 10px; font-size: 10pt; border: 1px solid #ddd; }
+  tr:nth-child(even) td { background: #f5f5f5; }
+</style></head><body>
+<h1>Samsung Stock Report</h1>
+<div class="subtitle">Generated: ${new Date().toLocaleString("en-US", { timeZone: NPT_TIMEZONE })}</div>`;
+
+  for (const cat of stock) {
+    const total = cat.items.reduce((s, i) => s + i.qty, 0);
+    html += `<h2>${cat.label} — Total: ${total}</h2>
+<table><tr><th>Model</th><th>Quantity</th></tr>`;
+    for (const item of cat.items) {
+      html += `<tr><td>${item.model}</td><td>${item.qty}</td></tr>`;
+    }
+    html += `</table>`;
+  }
+
+  html += `</body></html>`;
+
+  const blob = new Blob(["\ufeff", html], {
+    type: "application/msword;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "samsung-stock.doc";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Components ───────────────────────────────────────────────────────────────
+
 function CategoryIcon({ type, color }) {
   const props = { size: 20, color, strokeWidth: 2 };
   switch (type) {
@@ -495,6 +639,87 @@ function CategoryIcon({ type, color }) {
   }
 }
 
+function DownloadMenu({ stock }) {
+  const [open, setOpen] = useState(false);
+  const [xlsxLoading, setXlsxLoading] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [open]);
+
+  const handleXLSX = async () => {
+    setOpen(false);
+    setXlsxLoading(true);
+    try {
+      await exportAsXLSX(stock);
+    } catch (err) {
+      console.error("XLSX export failed:", err);
+    } finally {
+      setXlsxLoading(false);
+    }
+  };
+
+  return (
+    <div className="download-menu-wrap" ref={menuRef}>
+      <button
+        type="button"
+        className={`icon-btn icon-btn--download tap-btn ${open || xlsxLoading ? "is-active" : ""}`}
+        onClick={() => !xlsxLoading && setOpen((v) => !v)}
+        title={xlsxLoading ? "Preparing file…" : "Export data"}
+        aria-label="Export data"
+        disabled={xlsxLoading}
+      >
+        {xlsxLoading ? (
+          <span className="dl-spinner" aria-hidden="true" />
+        ) : (
+          <Download size={20} />
+        )}
+      </button>
+      {open && (
+        <div className="download-dropdown">
+          <button
+            type="button"
+            className="download-option tap-btn"
+            onClick={handleXLSX}
+          >
+            <FileSpreadsheet size={16} color="#06D6A0" />
+            <span>Export as .xlsx</span>
+          </button>
+          <button
+            type="button"
+            className="download-option tap-btn"
+            onClick={() => { exportAsPDF(stock); setOpen(false); }}
+          >
+            <FileText size={16} color="#FF6B35" />
+            <span>Export as PDF</span>
+          </button>
+          <button
+            type="button"
+            className="download-option tap-btn"
+            onClick={() => { exportAsWord(stock); setOpen(false); }}
+          >
+            <FileType size={16} color="#4CC9F0" />
+            <span>Export as Word</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function StockTracker() {
   const [persisted] = useState(() => loadPersistedState());
   const [stock, setStock] = useState(persisted.stock);
@@ -509,7 +734,7 @@ export default function StockTracker() {
 
   useEffect(() => {
     setHistory((h) => {
-      const pruned = pruneHistoryToLastWeek(h);
+      const pruned = pruneHistoryToMaxRecords(h);
       return pruned.length === h.length ? h : pruned;
     });
   }, []);
@@ -517,7 +742,7 @@ export default function StockTracker() {
   useEffect(() => {
     if (page !== "history") return;
     setHistory((h) => {
-      const pruned = pruneHistoryToLastWeek(h);
+      const pruned = pruneHistoryToMaxRecords(h);
       return pruned.length === h.length ? h : pruned;
     });
   }, [page]);
@@ -711,7 +936,7 @@ export default function StockTracker() {
               <h1 className="history-header-title">History Log</h1>
               <p className="history-header-sub">
                 {history.length === 0
-                  ? "Last 7 days"
+                  ? `Last ${MAX_HISTORY_RECORDS} records`
                   : `${historyByDay.length} day${historyByDay.length === 1 ? "" : "s"} · ${history.length} change${history.length === 1 ? "" : "s"}`}
               </p>
             </div>
@@ -741,6 +966,7 @@ export default function StockTracker() {
               <History size={20} />
               {history.length > 0 && <span className="notify-dot" />}
             </button>
+            <DownloadMenu stock={stock} />
             <button
               type="button"
               className={`icon-btn icon-btn--copy tap-btn ${copied ? "is-copied" : ""}`}
