@@ -44,6 +44,7 @@ const INITIAL_DATA = [
       { model: "RT37C4521S8", qty: 1 },
       { model: "RT38DG5A2BS8", qty: 4 },
       { model: "RS78", qty: 1 },
+      { model: "RT40H28WNQIN", qty: 1 },
     ],
   },
   {
