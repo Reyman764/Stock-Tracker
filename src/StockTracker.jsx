@@ -95,6 +95,8 @@ const INITIAL_DATA = [
       { model: "CE76JD-B1", qty: 2 },
       { model: "MC28A5147VK", qty: 4 },
       { model: "Ms23K3513AK", qty: 2 },
+      { model: "MC28M6036CH/IM", qty: 0 },
+      { model: "MC28A5145VR/IM", qty: 0 },
     ],
   },
   {
