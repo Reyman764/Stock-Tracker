@@ -84,6 +84,7 @@ const INITIAL_DATA = [
       { model: "WW80T504DAN", qty: 1 },
       { model: "WW12DG5U24AX", qty: 4 },
       { model: "WW12DG6U24AX", qty: 0 },
+      { model: "WW90DG5U24ABIM", qty: 0 },
     ],
   },
   {
