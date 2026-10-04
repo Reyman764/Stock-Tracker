@@ -67,7 +67,8 @@ const INITIAL_DATA = [
       { model: "UA75M70HARSHE", qty: 0 },
       { model: "HW-B450F/XL", qty: 0 },
       { model: "UA55U8500HRSHE", qty: 0 },
-     { model: "UA65U8500HRSHE", qty: 0 },
+      { model: "UA65U8500HRSHE", qty: 0 },
+      { model: "QA65QN70HARSHE (FG HIM)", qty: 0 },
     ],
   },
   {
@@ -180,7 +181,7 @@ function mergeStockWithInitial(savedStock) {
       ...cat,
       items: cat.items.map((item) => {
         const savedItem = savedCat.items.find(
-          (i) => i && typeof i.model === "string" && i.model === item.model
+          (i) => i && typeof i.model === "string" && i.model === item.model,
         );
         if (!savedItem) return item;
         return { ...item, qty: sanitizeQty(savedItem.qty, item.qty) };
@@ -190,10 +191,18 @@ function mergeStockWithInitial(savedStock) {
 }
 
 function resolveHistoryChange(entry) {
-  if (typeof entry.change === "number" && !Number.isNaN(entry.change) && entry.change !== 0) {
+  if (
+    typeof entry.change === "number" &&
+    !Number.isNaN(entry.change) &&
+    entry.change !== 0
+  ) {
     return entry.change;
   }
-  if (typeof entry.units === "number" && !Number.isNaN(entry.units) && entry.units !== 0) {
+  if (
+    typeof entry.units === "number" &&
+    !Number.isNaN(entry.units) &&
+    entry.units !== 0
+  ) {
     const units = Math.abs(Math.floor(entry.units));
     return entry.direction === "-" ? -units : units;
   }
@@ -294,7 +303,10 @@ function normalizeHistoryEntry(entry) {
     day:
       typeof entry.day === "string"
         ? entry.day
-        : dateFromTs.toLocaleDateString("en-US", { weekday: "long", timeZone: NPT_TIMEZONE }),
+        : dateFromTs.toLocaleDateString("en-US", {
+            weekday: "long",
+            timeZone: NPT_TIMEZONE,
+          }),
     time:
       typeof entry.time === "string"
         ? entry.time
@@ -353,7 +365,7 @@ function aggregateHistoryByDayAndModel(entries) {
   }
 
   return pruneHistoryToMaxRecords(
-    Array.from(merged.values()).sort((a, b) => b.timestamp - a.timestamp)
+    Array.from(merged.values()).sort((a, b) => b.timestamp - a.timestamp),
   );
 }
 
@@ -378,7 +390,10 @@ function createHistoryEntry(model, change, category, now = new Date()) {
       day: "numeric",
       timeZone: NPT_TIMEZONE,
     }),
-    day: now.toLocaleDateString("en-US", { weekday: "long", timeZone: NPT_TIMEZONE }),
+    day: now.toLocaleDateString("en-US", {
+      weekday: "long",
+      timeZone: NPT_TIMEZONE,
+    }),
     time: now.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
@@ -395,13 +410,14 @@ function appendHistoryChange(history, model, change, category) {
   const now = new Date();
   const dayKey = getDayKey(now);
   const existingIndex = history.findIndex(
-    (e) => e.model === model && getDayKeyFromEntry(e) === dayKey
+    (e) => e.model === model && getDayKeyFromEntry(e) === dayKey,
   );
 
   if (existingIndex === -1) {
-    return pruneHistoryToMaxRecords(
-      [createHistoryEntry(model, change, category, now), ...history]
-    );
+    return pruneHistoryToMaxRecords([
+      createHistoryEntry(model, change, category, now),
+      ...history,
+    ]);
   }
 
   const existing = history[existingIndex];
@@ -409,7 +425,7 @@ function appendHistoryChange(history, model, change, category) {
 
   if (combinedChange === 0) {
     return pruneHistoryToMaxRecords(
-      history.filter((_, i) => i !== existingIndex)
+      history.filter((_, i) => i !== existingIndex),
     );
   }
 
@@ -563,7 +579,8 @@ function exportAsPDF(stock) {
 
   // Use a hidden iframe to avoid popup blockers
   const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none;";
+  iframe.style.cssText =
+    "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none;";
   document.body.appendChild(iframe);
 
   const doc = iframe.contentDocument || iframe.contentWindow.document;
@@ -709,7 +726,10 @@ function DownloadMenu({ stock }) {
           <button
             type="button"
             className="download-option tap-btn"
-            onClick={() => { exportAsPDF(stock); setOpen(false); }}
+            onClick={() => {
+              exportAsPDF(stock);
+              setOpen(false);
+            }}
           >
             <FileText size={16} color="#FF6B35" />
             <span>Export as PDF</span>
@@ -717,7 +737,10 @@ function DownloadMenu({ stock }) {
           <button
             type="button"
             className="download-option tap-btn"
-            onClick={() => { exportAsWord(stock); setOpen(false); }}
+            onClick={() => {
+              exportAsWord(stock);
+              setOpen(false);
+            }}
           >
             <FileType size={16} color="#4CC9F0" />
             <span>Export as Word</span>
@@ -763,7 +786,7 @@ export default function StockTracker() {
           version: STORAGE_VERSION,
           stock: serializeStockForStorage(stock),
           history,
-        })
+        }),
       );
     } catch {
       // Quota exceeded or private mode — in-memory state still works this session
@@ -796,22 +819,24 @@ export default function StockTracker() {
           : {
               ...c,
               items: c.items.map((i) =>
-                i.model !== model ? i : { ...i, qty: newQty }
+                i.model !== model ? i : { ...i, qty: newQty },
               ),
-            }
+            },
       );
     });
   }, []);
 
   const toggleCategory = (id) => {
     setOpenIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
   const toggleHistoryDay = (dayKey) => {
     setOpenHistoryDays((prev) =>
-      prev.includes(dayKey) ? prev.filter((x) => x !== dayKey) : [...prev, dayKey]
+      prev.includes(dayKey)
+        ? prev.filter((x) => x !== dayKey)
+        : [...prev, dayKey],
     );
   };
 
@@ -829,102 +854,111 @@ export default function StockTracker() {
 
   const totalItems = stock.reduce(
     (sum, cat) => sum + cat.items.reduce((s, i) => s + i.qty, 0),
-    0
+    0,
   );
 
   const todayKey = getDayKey();
 
   const historyList = useMemo(
     () => (
-    <div className="history-card">
-      {history.length === 0 ? (
-        <div className="history-empty">
-          No changes yet.
-          <br />
-          Tap + or − on any model to log unit changes.
-        </div>
-      ) : (
-        historyByDay.map((group) => {
-          const isDayOpen = openHistoryDays.includes(group.dayKey);
-          const isToday = group.dayKey === todayKey;
-          return (
-            <div key={group.dayKey} className="day-group">
-              <button
-                type="button"
-                className={`day-toggle tap-btn ${isDayOpen ? "is-open" : ""}`}
-                onClick={() => toggleHistoryDay(group.dayKey)}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="day-label">
-                    {formatDayDropdownLabel(group)}
-                    {isToday && <span className="day-badge-today">Today</span>}
-                  </div>
-                  <div className="day-meta">
-                    {group.entries.length} change
-                    {group.entries.length === 1 ? "" : "s"}
-                  </div>
-                </div>
-                <ChevronDown size={18} color="#6a6a7a" className="day-chevron" />
-              </button>
-
-              {isDayOpen && (
-                <div className="day-entries">
-                  {group.entries.map((entry) => (
-                    <div key={entry.id} className="history-entry">
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                            gap: "6px 8px",
-                            marginBottom: 4,
-                          }}
-                        >
-                          <span
-                            className="cat-badge"
-                            style={{
-                              color: "#4CC9F0",
-                              background: "rgba(76, 201, 240, 0.12)",
-                              border: "1px solid rgba(76, 201, 240, 0.28)",
-                            }}
-                          >
-                            {shortCategoryLabel(entry.categoryLabel)}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 15,
-                              fontWeight: 700,
-                              fontFamily: "'SF Mono', ui-monospace, monospace",
-                              color: "#E8E8F0",
-                              wordBreak: "break-all",
-                            }}
-                          >
-                            {entry.model}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 12, color: "#6a6a7a" }}>
-                          {entry.time}
-                        </div>
-                      </div>
-                      <span
-                        className={`change-pill ${
-                          entry.change > 0 ? "change-pill--up" : "change-pill--down"
-                        }`}
-                      >
-                        {formatHistoryChange(entry.change)}
-                      </span>
+      <div className="history-card">
+        {history.length === 0 ? (
+          <div className="history-empty">
+            No changes yet.
+            <br />
+            Tap + or − on any model to log unit changes.
+          </div>
+        ) : (
+          historyByDay.map((group) => {
+            const isDayOpen = openHistoryDays.includes(group.dayKey);
+            const isToday = group.dayKey === todayKey;
+            return (
+              <div key={group.dayKey} className="day-group">
+                <button
+                  type="button"
+                  className={`day-toggle tap-btn ${isDayOpen ? "is-open" : ""}`}
+                  onClick={() => toggleHistoryDay(group.dayKey)}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="day-label">
+                      {formatDayDropdownLabel(group)}
+                      {isToday && (
+                        <span className="day-badge-today">Today</span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })
-      )}
-    </div>
+                    <div className="day-meta">
+                      {group.entries.length} change
+                      {group.entries.length === 1 ? "" : "s"}
+                    </div>
+                  </div>
+                  <ChevronDown
+                    size={18}
+                    color="#6a6a7a"
+                    className="day-chevron"
+                  />
+                </button>
+
+                {isDayOpen && (
+                  <div className="day-entries">
+                    {group.entries.map((entry) => (
+                      <div key={entry.id} className="history-entry">
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              alignItems: "center",
+                              gap: "6px 8px",
+                              marginBottom: 4,
+                            }}
+                          >
+                            <span
+                              className="cat-badge"
+                              style={{
+                                color: "#4CC9F0",
+                                background: "rgba(76, 201, 240, 0.12)",
+                                border: "1px solid rgba(76, 201, 240, 0.28)",
+                              }}
+                            >
+                              {shortCategoryLabel(entry.categoryLabel)}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 15,
+                                fontWeight: 700,
+                                fontFamily:
+                                  "'SF Mono', ui-monospace, monospace",
+                                color: "#E8E8F0",
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              {entry.model}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "#6a6a7a" }}>
+                            {entry.time}
+                          </div>
+                        </div>
+                        <span
+                          className={`change-pill ${
+                            entry.change > 0
+                              ? "change-pill--up"
+                              : "change-pill--down"
+                          }`}
+                        >
+                          {formatHistoryChange(entry.change)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
     ),
-    [history, historyByDay, openHistoryDays, todayKey]
+    [history, historyByDay, openHistoryDays, todayKey],
   );
 
   if (page === "history") {
@@ -980,7 +1014,9 @@ export default function StockTracker() {
               className={`icon-btn icon-btn--copy tap-btn ${copied ? "is-copied" : ""}`}
               onClick={handleCopy}
               title={copied ? "Copied!" : "Copy summary"}
-              aria-label={copied ? "Copied to clipboard" : "Copy summary to clipboard"}
+              aria-label={
+                copied ? "Copied to clipboard" : "Copy summary to clipboard"
+              }
             >
               {copied ? <ClipboardCheck size={20} /> : <Clipboard size={20} />}
             </button>
@@ -1031,7 +1067,11 @@ export default function StockTracker() {
                   >
                     {catTotal}
                   </div>
-                  <ChevronDown size={18} color="#6a6a7a" className="category-chevron" />
+                  <ChevronDown
+                    size={18}
+                    color="#6a6a7a"
+                    className="category-chevron"
+                  />
                 </div>
               </button>
 
