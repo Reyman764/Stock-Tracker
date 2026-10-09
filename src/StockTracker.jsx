@@ -16,6 +16,12 @@ import {
   FileSpreadsheet,
   FileText,
   FileType,
+  PackageX,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  ChevronRight,
 } from "lucide-react";
 
 const INITIAL_DATA = [
@@ -130,8 +136,8 @@ const INITIAL_DATA = [
 
 const STORAGE_KEY = "samsung_stock_v1";
 const STORAGE_VERSION = 2;
-const HISTORY_RETENTION_DAYS = 7;
-const MAX_HISTORY_SAFETY_CAP = 2000; // protects localStorage from growing forever
+const HISTORY_RETENTION_MONTHS = 24; // how many Nepali months of history to keep
+const MAX_HISTORY_SAFETY_CAP = 6000; // protects localStorage from growing forever
 
 // Nepal Standard Time is UTC+5:45
 const NPT_TIMEZONE = "Asia/Kathmandu";
@@ -239,14 +245,118 @@ function getDayKeyFromEntry(entry) {
   return getDayKey(new Date(ts));
 }
 
-/** Keep entries from the last HISTORY_RETENTION_DAYS days (Nepal time, today included). */
+// ─── Nepali (Bikram Sambat) calendar ───────────────────────────────────────────
+// The browser cannot convert to BS on its own, so the month lengths are stored here.
+// BS 2070–2086 matches two independent converters exactly; later years are best estimates
+// and should be re-checked against the official calendar when they get close.
+
+const BS_MONTHS_EN = [
+  "Baisakh",
+  "Jestha",
+  "Ashadh",
+  "Shrawan",
+  "Bhadra",
+  "Ashwin",
+  "Kartik",
+  "Mangsir",
+  "Poush",
+  "Magh",
+  "Falgun",
+  "Chaitra",
+];
+const BS_MONTHS_NE = [
+  "बैशाख",
+  "जेठ",
+  "असार",
+  "श्रावण",
+  "भदौ",
+  "असोज",
+  "कार्तिक",
+  "मंसिर",
+  "पौष",
+  "माघ",
+  "फाल्गुन",
+  "चैत्र",
+];
+
+const BS_FIRST_YEAR = 2070;
+const BS_LAST_YEAR = 2097;
+// BS 2070-01-01 (Baisakh 1) = 14 April 2013
+const BS_FIRST_YEAR_AD_DAY = Date.UTC(2013, 3, 14) / 86400000;
+const BS_MONTH_DAYS = {
+  2070: [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+  2071: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2072: [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+  2073: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+  2074: [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+  2075: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2076: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+  2077: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+  2078: [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+  2079: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2080: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+  2081: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+  2082: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2083: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2084: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+  2085: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+  2086: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2087: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+  2088: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+  2089: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+  2090: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2091: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+  2092: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+  2093: [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 29, 31],
+  2094: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+  2095: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+  2096: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+  2097: [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+};
+
+function bsMonthDays(year) {
+  // Past the table, reuse the last known year so the app keeps working (approximate)
+  return BS_MONTH_DAYS[year] ?? BS_MONTH_DAYS[BS_LAST_YEAR];
+}
+
+/** Convert an AD day key ("YYYY-MM-DD", Nepal day) to { year, month (0-11), day }. */
+function adDayKeyToBs(dayKey) {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey);
+  if (!parts) return null;
+
+  let n =
+    Math.round(
+      Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])) /
+        86400000,
+    ) - BS_FIRST_YEAR_AD_DAY;
+  if (n < 0) return null;
+
+  for (let year = BS_FIRST_YEAR; year < BS_FIRST_YEAR + 200; year++) {
+    const months = bsMonthDays(year);
+    for (let month = 0; month < 12; month++) {
+      if (n < months[month]) return { year, month, day: n + 1 };
+      n -= months[month];
+    }
+  }
+  return null;
+}
+
+function bsMonthKey(bs) {
+  return `${bs.year}-${String(bs.month + 1).padStart(2, "0")}`;
+}
+
+/** Keep entries from the last HISTORY_RETENTION_MONTHS Nepali months (current month included). */
 function pruneHistoryToMaxRecords(entries) {
-  const cutoffKey = getDayKey(
-    new Date(Date.now() - (HISTORY_RETENTION_DAYS - 1) * 24 * 60 * 60 * 1000),
-  );
+  const today = adDayKeyToBs(getDayKey());
+  const currentIndex = today ? today.year * 12 + today.month : null;
 
   return entries
-    .filter((entry) => getDayKeyFromEntry(entry) >= cutoffKey)
+    .filter((entry) => {
+      const bs = adDayKeyToBs(getDayKeyFromEntry(entry));
+      if (!bs) return false;
+      if (currentIndex === null) return true;
+      return currentIndex - (bs.year * 12 + bs.month) < HISTORY_RETENTION_MONTHS;
+    })
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, MAX_HISTORY_SAFETY_CAP);
 }
@@ -275,9 +385,36 @@ function groupHistoryByDay(entries) {
     .sort((a, b) => b.dayKey.localeCompare(a.dayKey));
 }
 
-function formatDayDropdownLabel(group) {
-  const shortDate = group.date.replace(/,?\s*\d{4}$/, "").trim();
-  return `${shortDate} (${group.day})`;
+/** Group the day groups into Nepali months, newest first. */
+function groupHistoryByMonth(entries) {
+  const byMonth = new Map();
+
+  for (const dayGroup of groupHistoryByDay(entries)) {
+    const bs = adDayKeyToBs(dayGroup.dayKey);
+    if (!bs) continue;
+
+    const monthKey = bsMonthKey(bs);
+    if (!byMonth.has(monthKey)) {
+      byMonth.set(monthKey, {
+        monthKey,
+        year: bs.year,
+        month: bs.month,
+        days: [],
+        changeCount: 0,
+      });
+    }
+    const month = byMonth.get(monthKey);
+    month.days.push({ ...dayGroup, bsDay: bs.day });
+    month.changeCount += dayGroup.entries.length;
+  }
+
+  return Array.from(byMonth.values()).sort((a, b) =>
+    b.monthKey.localeCompare(a.monthKey),
+  );
+}
+
+function formatBsDayLabel(group, month) {
+  return `${BS_MONTHS_EN[month.month]} ${group.bsDay} (${group.day})`;
 }
 
 function normalizeHistoryEntry(entry) {
@@ -496,6 +633,80 @@ function serializeStockForStorage(stock) {
       qty: sanitizeQty(item.qty, 0),
     })),
   }));
+}
+
+// ─── Damaged products ──────────────────────────────────────────────────────────
+
+const DAMAGED_STORAGE_KEY = "samsung_damaged_v1";
+const DAMAGED_COLOR = "#FF4D6D";
+const EMPTY_DAMAGED_FORM = { name: "", model: "", serial: "", note: "" };
+const DAMAGED_NAME_SUGGESTIONS = [
+  "Fridge",
+  "TV",
+  "Washing Machine",
+  "Microwave",
+  "Vacuum",
+  "A/C",
+];
+
+// Every known model, so the "Product model" field can suggest them (free text still allowed)
+const ALL_MODELS = Array.from(
+  new Set(INITIAL_DATA.flatMap((cat) => cat.items.map((i) => i.model.trim()))),
+);
+
+function makeId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function loadDamaged() {
+  try {
+    const raw = localStorage.getItem(DAMAGED_STORAGE_KEY);
+    if (!raw || typeof raw !== "string") return [];
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed?.items)
+        ? parsed.items
+        : [];
+
+    return list
+      .filter(
+        (e) =>
+          e && typeof e.model === "string" && typeof e.serial === "string",
+      )
+      .map((e) => {
+        const createdAt =
+          typeof e.createdAt === "number" && !Number.isNaN(e.createdAt)
+            ? e.createdAt
+            : Date.now();
+        return {
+          id: typeof e.id === "string" ? e.id : makeId(),
+          // items saved before the name field existed simply have no name
+          name: typeof e.name === "string" ? e.name : "",
+          model: e.model,
+          serial: e.serial,
+          note: typeof e.note === "string" ? e.note : "",
+          qty: sanitizeQty(e.qty, 1),
+          createdAt,
+          updatedAt:
+            typeof e.updatedAt === "number" && !Number.isNaN(e.updatedAt)
+              ? e.updatedAt
+              : createdAt,
+        };
+      })
+      .sort((a, b) => b.createdAt - a.createdAt);
+  } catch {
+    return [];
+  }
+}
+
+function formatDamagedDate(ts) {
+  return new Date(ts).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: NPT_TIMEZONE,
+  });
 }
 
 // ─── Export helpers ────────────────────────────────────────────────────────────
@@ -761,6 +972,400 @@ function DownloadMenu({ stock }) {
   );
 }
 
+function DamagedProducts({ items, setItems, onBack }) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(EMPTY_DAMAGED_FORM);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [confirmId, setConfirmId] = useState(null);
+
+  const totalUnits = items.reduce((sum, i) => sum + i.qty, 0);
+
+  const openAdd = () => {
+    setEditingId(null);
+    setForm(EMPTY_DAMAGED_FORM);
+    setError("");
+    setConfirmId(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (item) => {
+    setEditingId(item.id);
+    setForm({
+      name: item.name,
+      model: item.model,
+      serial: item.serial,
+      note: item.note,
+    });
+    setError("");
+    setConfirmId(null);
+    setFormOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingId(null);
+    setForm(EMPTY_DAMAGED_FORM);
+    setError("");
+  };
+
+  const updateField = (field) => (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, [field]: value }));
+    if (error) setError("");
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const name = form.name.trim();
+    const model = form.model.trim();
+    const serial = form.serial.trim();
+    const note = form.note.trim();
+
+    if (!name) {
+      setError("Enter the product name.");
+      return;
+    }
+    if (!model) {
+      setError("Enter the product model.");
+      return;
+    }
+    if (!serial) {
+      setError("Enter the serial number.");
+      return;
+    }
+
+    const duplicate = items.find(
+      (i) =>
+        i.id !== editingId &&
+        i.serial.trim().toLowerCase() === serial.toLowerCase(),
+    );
+    if (duplicate) {
+      setError(
+        `Serial number ${serial} is already saved (${duplicate.name || duplicate.model}).`,
+      );
+      return;
+    }
+
+    const now = Date.now();
+    if (editingId) {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === editingId
+            ? { ...i, name, model, serial, note, updatedAt: now }
+            : i,
+        ),
+      );
+    } else {
+      setItems((prev) => [
+        {
+          id: makeId(),
+          name,
+          model,
+          serial,
+          note,
+          qty: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+        ...prev,
+      ]);
+    }
+    closeForm();
+  };
+
+  const adjustQty = (id, delta) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === id ? { ...i, qty: Math.max(0, i.qty + delta) } : i,
+      ),
+    );
+  };
+
+  const handleDelete = (id) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    setConfirmId(null);
+    if (editingId === id) closeForm();
+  };
+
+  const visibleItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (i) =>
+        i.name.toLowerCase().includes(q) ||
+        i.model.toLowerCase().includes(q) ||
+        i.serial.toLowerCase().includes(q) ||
+        i.note.toLowerCase().includes(q),
+    );
+  }, [items, query]);
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="header-back-row">
+          <button
+            type="button"
+            className="icon-btn icon-btn--back tap-btn"
+            onClick={onBack}
+            aria-label="Back to stock tracker"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 className="history-header-title">Damaged Products</h1>
+            <p className="history-header-sub">
+              {items.length === 0
+                ? "No damaged items saved"
+                : `${items.length} item${items.length === 1 ? "" : "s"} · ${totalUnits} unit${totalUnits === 1 ? "" : "s"}`}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="icon-btn icon-btn--add tap-btn"
+            onClick={openAdd}
+            title="Add damaged product"
+            aria-label="Add damaged product"
+          >
+            <Plus size={22} />
+          </button>
+        </div>
+      </header>
+
+      <div className="content-pad">
+        {formOpen && (
+          <form
+            className="damaged-form"
+            onSubmit={handleSubmit}
+            aria-label={
+              editingId ? "Edit damaged product" : "Add damaged product"
+            }
+          >
+            <div className="damaged-form-title">
+              {editingId ? "Edit damaged product" : "Add damaged product"}
+            </div>
+
+            <label className="field-label" htmlFor="damaged-name">
+              Product name
+            </label>
+            <input
+              id="damaged-name"
+              className="field-input"
+              type="text"
+              list="damaged-name-options"
+              placeholder="e.g. Fridge, TV, Washing Machine"
+              value={form.name}
+              onChange={updateField("name")}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <datalist id="damaged-name-options">
+              {DAMAGED_NAME_SUGGESTIONS.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
+
+            <label className="field-label" htmlFor="damaged-model">
+              Product model
+            </label>
+            <input
+              id="damaged-model"
+              className="field-input"
+              type="text"
+              list="damaged-model-options"
+              placeholder="e.g. RT40H30WNPIM"
+              value={form.model}
+              onChange={updateField("model")}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+            />
+            <datalist id="damaged-model-options">
+              {ALL_MODELS.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+
+            <label className="field-label" htmlFor="damaged-serial">
+              Serial number
+            </label>
+            <input
+              id="damaged-serial"
+              className="field-input field-input--mono"
+              type="text"
+              placeholder="Enter serial number"
+              value={form.serial}
+              onChange={updateField("serial")}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+            />
+
+            <label className="field-label" htmlFor="damaged-note">
+              Note <span className="field-optional">(optional)</span>
+            </label>
+            <input
+              id="damaged-note"
+              className="field-input"
+              type="text"
+              placeholder="e.g. Dent on door, scratched panel"
+              value={form.note}
+              onChange={updateField("note")}
+              autoComplete="off"
+            />
+
+            {error && (
+              <div className="damaged-error" role="alert">
+                {error}
+              </div>
+            )}
+
+            <div className="damaged-form-actions">
+              <button
+                type="button"
+                className="btn btn--ghost tap-btn"
+                onClick={closeForm}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn--primary tap-btn">
+                {editingId ? "Save changes" : "Add product"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {items.length > 0 && (
+          <div className="damaged-search">
+            <Search size={16} color="#6a6a7a" />
+            <input
+              type="search"
+              placeholder="Search name, model or serial"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search damaged products"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
+        )}
+
+        <div className="history-card">
+          {items.length === 0 ? (
+            <div className="history-empty">
+              No damaged products yet.
+              <br />
+              Tap + to add one with its serial number.
+            </div>
+          ) : visibleItems.length === 0 ? (
+            <div className="history-empty">No matches found.</div>
+          ) : (
+            visibleItems.map((item) => {
+              const edited = item.updatedAt - item.createdAt > 1000;
+              const label = item.name || item.model;
+              return (
+                <div key={item.id} className="damaged-row">
+                  <div className="damaged-info">
+                    <div className="damaged-name">{label}</div>
+                    {item.name && (
+                      <div className="damaged-model">{item.model}</div>
+                    )}
+                    <div className="damaged-serial">S/N: {item.serial}</div>
+                    {item.note && (
+                      <div className="damaged-note">{item.note}</div>
+                    )}
+                    <div className="damaged-date">
+                      Added {formatDamagedDate(item.createdAt)}
+                      {edited &&
+                        ` · Edited ${formatDamagedDate(item.updatedAt)}`}
+                    </div>
+                  </div>
+
+                  <div className="damaged-row-bottom">
+                    <div className="qty-stepper">
+                      <button
+                        type="button"
+                        className="qty-btn qty-btn--minus tap-btn"
+                        onClick={() => adjustQty(item.id, -1)}
+                        disabled={item.qty === 0}
+                        aria-label={`Decrease quantity of ${item.serial}`}
+                      >
+                        −
+                      </button>
+                      <div
+                        className="qty-value"
+                        style={{
+                          color: item.qty === 0 ? "#404055" : DAMAGED_COLOR,
+                        }}
+                        aria-label={`Quantity of ${item.serial}`}
+                      >
+                        {item.qty}
+                      </div>
+                      <button
+                        type="button"
+                        className="qty-btn qty-btn--plus tap-btn"
+                        onClick={() => adjustQty(item.id, 1)}
+                        aria-label={`Increase quantity of ${item.serial}`}
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {confirmId === item.id ? (
+                      <div className="damaged-confirm">
+                        <span>Delete?</span>
+                        <button
+                          type="button"
+                          className="btn btn--danger btn--small tap-btn"
+                          onClick={() => handleDelete(item.id)}
+                          aria-label={`Confirm delete ${item.serial}`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--small tap-btn"
+                          onClick={() => setConfirmId(null)}
+                          aria-label="Cancel delete"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="damaged-actions">
+                        <button
+                          type="button"
+                          className="mini-btn mini-btn--edit tap-btn"
+                          onClick={() => openEdit(item)}
+                          title="Edit"
+                          aria-label={`Edit ${item.serial}`}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="mini-btn mini-btn--delete tap-btn"
+                          onClick={() => setConfirmId(item.id)}
+                          title="Delete"
+                          aria-label={`Delete ${item.serial}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StockTracker() {
   const [persisted] = useState(() => loadPersistedState());
   const [stock, setStock] = useState(persisted.stock);
@@ -768,10 +1373,15 @@ export default function StockTracker() {
   const [openIds, setOpenIds] = useState([]);
   const [page, setPage] = useState("stock");
   const [openHistoryDays, setOpenHistoryDays] = useState([]);
+  const [openHistoryMonths, setOpenHistoryMonths] = useState(() => {
+    const bs = adDayKeyToBs(getDayKey());
+    return bs ? [bsMonthKey(bs)] : []; // current Nepali month starts open
+  });
   const [copied, setCopied] = useState(false);
   const [qtyFlash, setQtyFlash] = useState(null);
+  const [damaged, setDamaged] = useState(() => loadDamaged());
 
-  const historyByDay = useMemo(() => groupHistoryByDay(history), [history]);
+  const historyByMonth = useMemo(() => groupHistoryByMonth(history), [history]);
 
   useEffect(() => {
     setHistory((h) => {
@@ -802,6 +1412,14 @@ export default function StockTracker() {
       // Quota exceeded or private mode — in-memory state still works this session
     }
   }, [stock, history]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DAMAGED_STORAGE_KEY, JSON.stringify(damaged));
+    } catch {
+      // Quota exceeded or private mode — in-memory state still works this session
+    }
+  }, [damaged]);
 
   const adjust = useCallback((catId, model, delta) => {
     if (delta === 0) return;
@@ -850,6 +1468,14 @@ export default function StockTracker() {
     );
   };
 
+  const toggleHistoryMonth = (monthKey) => {
+    setOpenHistoryMonths((prev) =>
+      prev.includes(monthKey)
+        ? prev.filter((x) => x !== monthKey)
+        : [...prev, monthKey],
+    );
+  };
+
   const handleCopy = () => {
     const lines = stock.map((cat) => {
       const header = cat.label.toUpperCase();
@@ -868,6 +1494,9 @@ export default function StockTracker() {
   );
 
   const todayKey = getDayKey();
+  const damagedUnits = damaged.reduce((sum, i) => sum + i.qty, 0);
+  const todayBs = adDayKeyToBs(todayKey);
+  const todayMonthKey = todayBs ? bsMonthKey(todayBs) : "";
 
   const historyList = useMemo(
     () => (
@@ -879,87 +1508,130 @@ export default function StockTracker() {
             Tap + or − on any model to log unit changes.
           </div>
         ) : (
-          historyByDay.map((group) => {
-            const isDayOpen = openHistoryDays.includes(group.dayKey);
-            const isToday = group.dayKey === todayKey;
+          historyByMonth.map((month) => {
+            const isMonthOpen = openHistoryMonths.includes(month.monthKey);
+            const isCurrentMonth = month.monthKey === todayMonthKey;
             return (
-              <div key={group.dayKey} className="day-group">
+              <div key={month.monthKey} className="month-group">
                 <button
                   type="button"
-                  className={`day-toggle tap-btn ${isDayOpen ? "is-open" : ""}`}
-                  onClick={() => toggleHistoryDay(group.dayKey)}
+                  className={`month-toggle tap-btn ${isMonthOpen ? "is-open" : ""}`}
+                  onClick={() => toggleHistoryMonth(month.monthKey)}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="day-label">
-                      {formatDayDropdownLabel(group)}
-                      {isToday && (
-                        <span className="day-badge-today">Today</span>
+                    <div className="month-label">
+                      {BS_MONTHS_EN[month.month]} {month.year}
+                      <span className="month-np">
+                        {BS_MONTHS_NE[month.month]}
+                      </span>
+                      {isCurrentMonth && (
+                        <span className="day-badge-today">This month</span>
                       )}
                     </div>
                     <div className="day-meta">
-                      {group.entries.length} change
-                      {group.entries.length === 1 ? "" : "s"}
+                      {month.days.length} day
+                      {month.days.length === 1 ? "" : "s"} · {month.changeCount}{" "}
+                      change{month.changeCount === 1 ? "" : "s"}
                     </div>
                   </div>
                   <ChevronDown
                     size={18}
                     color="#6a6a7a"
-                    className="day-chevron"
+                    className="month-chevron"
                   />
                 </button>
 
-                {isDayOpen && (
-                  <div className="day-entries">
-                    {group.entries.map((entry) => (
-                      <div key={entry.id} className="history-entry">
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              alignItems: "center",
-                              gap: "6px 8px",
-                              marginBottom: 4,
-                            }}
+                {isMonthOpen && (
+                  <div className="month-days">
+                    {month.days.map((group) => {
+                      const isDayOpen = openHistoryDays.includes(group.dayKey);
+                      const isToday = group.dayKey === todayKey;
+                      return (
+                        <div key={group.dayKey} className="day-group">
+                          <button
+                            type="button"
+                            className={`day-toggle tap-btn ${isDayOpen ? "is-open" : ""}`}
+                            onClick={() => toggleHistoryDay(group.dayKey)}
                           >
-                            <span
-                              className="cat-badge"
-                              style={{
-                                color: "#4CC9F0",
-                                background: "rgba(76, 201, 240, 0.12)",
-                                border: "1px solid rgba(76, 201, 240, 0.28)",
-                              }}
-                            >
-                              {shortCategoryLabel(entry.categoryLabel)}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: 15,
-                                fontWeight: 700,
-                                fontFamily:
-                                  "'SF Mono', ui-monospace, monospace",
-                                color: "#E8E8F0",
-                                wordBreak: "break-all",
-                              }}
-                            >
-                              {entry.model}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 12, color: "#6a6a7a" }}>
-                            {entry.time}
-                          </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div className="day-label">
+                                {formatBsDayLabel(group, month)}
+                                {isToday && (
+                                  <span className="day-badge-today">Today</span>
+                                )}
+                              </div>
+                              <div className="day-meta">
+                                {group.date} · {group.entries.length} change
+                                {group.entries.length === 1 ? "" : "s"}
+                              </div>
+                            </div>
+                            <ChevronDown
+                              size={18}
+                              color="#6a6a7a"
+                              className="day-chevron"
+                            />
+                          </button>
+
+                          {isDayOpen && (
+                            <div className="day-entries">
+                              {group.entries.map((entry) => (
+                                <div key={entry.id} className="history-entry">
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        flexWrap: "wrap",
+                                        alignItems: "center",
+                                        gap: "6px 8px",
+                                        marginBottom: 4,
+                                      }}
+                                    >
+                                      <span
+                                        className="cat-badge"
+                                        style={{
+                                          color: "#4CC9F0",
+                                          background: "rgba(76, 201, 240, 0.12)",
+                                          border:
+                                            "1px solid rgba(76, 201, 240, 0.28)",
+                                        }}
+                                      >
+                                        {shortCategoryLabel(entry.categoryLabel)}
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: 15,
+                                          fontWeight: 700,
+                                          fontFamily:
+                                            "'SF Mono', ui-monospace, monospace",
+                                          color: "#E8E8F0",
+                                          wordBreak: "break-all",
+                                        }}
+                                      >
+                                        {entry.model}
+                                      </span>
+                                    </div>
+                                    <div
+                                      style={{ fontSize: 12, color: "#6a6a7a" }}
+                                    >
+                                      {entry.time}
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={`change-pill ${
+                                      entry.change > 0
+                                        ? "change-pill--up"
+                                        : "change-pill--down"
+                                    }`}
+                                  >
+                                    {formatHistoryChange(entry.change)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <span
-                          className={`change-pill ${
-                            entry.change > 0
-                              ? "change-pill--up"
-                              : "change-pill--down"
-                          }`}
-                        >
-                          {formatHistoryChange(entry.change)}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -968,8 +1640,25 @@ export default function StockTracker() {
         )}
       </div>
     ),
-    [history, historyByDay, openHistoryDays, todayKey],
+    [
+      history,
+      historyByMonth,
+      openHistoryMonths,
+      openHistoryDays,
+      todayKey,
+      todayMonthKey,
+    ],
   );
+
+  if (page === "damaged") {
+    return (
+      <DamagedProducts
+        items={damaged}
+        setItems={setDamaged}
+        onBack={() => setPage("stock")}
+      />
+    );
+  }
 
   if (page === "history") {
     return (
@@ -988,8 +1677,8 @@ export default function StockTracker() {
               <h1 className="history-header-title">History Log</h1>
               <p className="history-header-sub">
                 {history.length === 0
-                  ? `Last ${HISTORY_RETENTION_DAYS} days`
-                  : `${historyByDay.length} day${historyByDay.length === 1 ? "" : "s"} · ${history.length} change${history.length === 1 ? "" : "s"}`}
+                  ? "Saved by Nepali month"
+                  : `${historyByMonth.length} month${historyByMonth.length === 1 ? "" : "s"} · ${history.length} change${history.length === 1 ? "" : "s"}`}
               </p>
             </div>
           </div>
@@ -1039,6 +1728,47 @@ export default function StockTracker() {
       </header>
 
       <div className="categories-wrap">
+        <div
+          className="category-card"
+          style={{ borderColor: `${DAMAGED_COLOR}33` }}
+        >
+          <button
+            type="button"
+            className="category-card-header tap-btn"
+            onClick={() => setPage("damaged")}
+            aria-label="Open damaged products"
+          >
+            <div
+              className="category-icon-wrap"
+              style={{
+                background: `${DAMAGED_COLOR}20`,
+                border: `1px solid ${DAMAGED_COLOR}50`,
+              }}
+            >
+              <PackageX size={20} color={DAMAGED_COLOR} strokeWidth={2} />
+            </div>
+            <div style={{ flex: 1, textAlign: "left" }}>
+              <div className="category-title">Damaged Products</div>
+              <div className="category-meta">
+                {damaged.length} item{damaged.length === 1 ? "" : "s"} · serial numbers
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                className="category-count"
+                style={{
+                  background: `${DAMAGED_COLOR}22`,
+                  border: `1px solid ${DAMAGED_COLOR}55`,
+                  color: DAMAGED_COLOR,
+                }}
+              >
+                {damagedUnits}
+              </div>
+              <ChevronRight size={18} color="#6a6a7a" />
+            </div>
+          </button>
+        </div>
+
         {stock.map((cat) => {
           const isOpen = openIds.includes(cat.id);
           const catTotal = cat.items.reduce((s, i) => s + i.qty, 0);

@@ -557,3 +557,318 @@
   opacity: 0.8;
   cursor: default;
 }
+
+/* ── Damaged Products ─────────────────────────────────────────────────────── */
+.icon-btn--add {
+  color: #06d6a0;
+}
+
+.damaged-form {
+  background: #12121f;
+  border: 1px solid rgba(255, 77, 109, 0.35);
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.damaged-form-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #f4f4fa;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8899aa;
+  margin: 14px 0 6px;
+}
+
+.field-optional {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: #5a5a6a;
+}
+
+.field-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 13px 14px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #f0f0f5;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.field-input::placeholder {
+  color: #4a4a5c;
+  font-weight: 500;
+}
+
+.field-input:focus {
+  border-color: rgba(76, 201, 240, 0.6);
+}
+
+.field-input--mono {
+  font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+  letter-spacing: 0.02em;
+}
+
+.damaged-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ff7a93;
+  background: rgba(247, 37, 133, 0.12);
+  border: 1px solid rgba(247, 37, 133, 0.3);
+}
+
+.damaged-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.btn {
+  flex: 1;
+  min-height: 46px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0 16px;
+}
+
+.btn--primary {
+  background: #06d6a0;
+  color: #04120d;
+}
+
+.btn--ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: #c8c8dc;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn--danger {
+  background: #f72585;
+  color: #fff;
+}
+
+.btn--small {
+  flex: none;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+.damaged-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #12121f;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 0 14px;
+  margin-bottom: 12px;
+}
+
+.damaged-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 13px 0;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: #f0f0f5;
+}
+
+.damaged-search input::placeholder {
+  color: #4a4a5c;
+}
+
+.damaged-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.damaged-info {
+  min-width: 0;
+}
+
+.damaged-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.damaged-row:last-child {
+  border-bottom: none;
+}
+
+.damaged-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #f4f4fa;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+}
+
+.damaged-model {
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #c8c8dc;
+  font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+  word-break: break-all;
+}
+
+.damaged-serial {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ff7a93;
+  font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+  word-break: break-all;
+}
+
+.damaged-note {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #a8a8bc;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.damaged-date {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #5f5f70;
+}
+
+.damaged-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mini-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-btn--edit {
+  color: #4cc9f0;
+  background: rgba(76, 201, 240, 0.1);
+}
+
+.mini-btn--delete {
+  color: #f72585;
+  background: rgba(247, 37, 133, 0.1);
+}
+
+.damaged-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ff7a93;
+}
+
+
+/* ── History log: Nepali month groups ─────────────────────────────────────── */
+.month-group {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.month-group:last-child {
+  border-bottom: none;
+}
+
+.month-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+  transition: background 0.15s ease;
+}
+
+.month-toggle:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.month-toggle.is-open {
+  background: rgba(76, 201, 240, 0.08);
+}
+
+.month-label {
+  font-size: 17px;
+  font-weight: 800;
+  color: #f4f4fa;
+  letter-spacing: -0.02em;
+}
+
+.month-np {
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8899aa;
+  letter-spacing: 0;
+}
+
+.month-chevron {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.month-toggle.is-open .month-chevron {
+  transform: rotate(180deg);
+}
+
+.month-days {
+  background: rgba(0, 0, 0, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.month-days .day-toggle {
+  padding-left: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .month-chevron {
+    transition: none;
+  }
+}
