@@ -130,7 +130,8 @@ const INITIAL_DATA = [
 
 const STORAGE_KEY = "samsung_stock_v1";
 const STORAGE_VERSION = 2;
-const MAX_HISTORY_RECORDS = 7;
+const HISTORY_RETENTION_DAYS = 7;
+const MAX_HISTORY_SAFETY_CAP = 2000; // protects localStorage from growing forever
 
 // Nepal Standard Time is UTC+5:45
 const NPT_TIMEZONE = "Asia/Kathmandu";
@@ -238,11 +239,16 @@ function getDayKeyFromEntry(entry) {
   return getDayKey(new Date(ts));
 }
 
-/** Keep only the latest MAX_HISTORY_RECORDS records regardless of days. */
+/** Keep entries from the last HISTORY_RETENTION_DAYS days (Nepal time, today included). */
 function pruneHistoryToMaxRecords(entries) {
+  const cutoffKey = getDayKey(
+    new Date(Date.now() - (HISTORY_RETENTION_DAYS - 1) * 24 * 60 * 60 * 1000),
+  );
+
   return entries
+    .filter((entry) => getDayKeyFromEntry(entry) >= cutoffKey)
     .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, MAX_HISTORY_RECORDS);
+    .slice(0, MAX_HISTORY_SAFETY_CAP);
 }
 
 function groupHistoryByDay(entries) {
@@ -982,7 +988,7 @@ export default function StockTracker() {
               <h1 className="history-header-title">History Log</h1>
               <p className="history-header-sub">
                 {history.length === 0
-                  ? `Last ${MAX_HISTORY_RECORDS} records`
+                  ? `Last ${HISTORY_RETENTION_DAYS} days`
                   : `${historyByDay.length} day${historyByDay.length === 1 ? "" : "s"} · ${history.length} change${history.length === 1 ? "" : "s"}`}
               </p>
             </div>
