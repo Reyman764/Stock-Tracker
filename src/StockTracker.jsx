@@ -71,6 +71,8 @@ const INITIAL_DATA = [
       { model: "UA55U8500HRSHE", qty: 0 },
       { model: "UA65U8500HRSHE", qty: 0 },
       { model: "QA65QN70HARSHE (FG HIM)", qty: 0 },
+      { model: "UA43U8500FRSHE", qty: 0 },
+      { model: "UA43U8500HRSHE", qty: 0 },
     ],
   },
   {
